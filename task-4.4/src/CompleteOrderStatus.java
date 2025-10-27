@@ -13,4 +13,9 @@ public class CompleteOrderStatus implements IOrderStatus {
     public IOrderStatus cancel(Order order) {
         throw new IllegalStateException("Нельзя отменить завершенный заказ.");
     }
+
+    @Override
+    public String toString() {
+        return "Выполнен";
+    }
 }

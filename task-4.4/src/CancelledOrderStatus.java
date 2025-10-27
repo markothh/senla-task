@@ -13,4 +13,9 @@ public class CancelledOrderStatus implements IOrderStatus {
     public IOrderStatus cancel(Order order) {
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "Отменен";
+    }
 }

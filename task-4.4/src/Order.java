@@ -1,33 +1,42 @@
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class Order {
     private static int nextId = 1;
 
     private int id;
-    private int userId;
+    private User user;
     private List<Book> books = new ArrayList<>();
-    private Date createdAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime completedAt;
     private IOrderStatus status;
 
-    public Order(int userId) {
+
+    public Order(User user) {
         this.id = Order.nextId++;
-        this.createdAt = new Date();
+        this.createdAt = LocalDateTime.now();
         this.status = new NewOrderStatus();
 
-        this.userId = userId;
+        this.user = user;
     };
 
     @Override
     public String toString() {
-        return "Order{" +
+        return "\nOrder{" +
                 "id=" + id +
-                ", userId=" + userId +
-                ", books=" + books +
-                ", createdAt=" + createdAt +
+                ", user=" + user +
+                ", \n\tbooks=" + books +
+                ", \n\tcreatedAt=" + createdAt +
+                ", completedAt=" + completedAt +
                 ", status=" + status +
+                ", sum=" + getSum() +
                 '}';
+    }
+
+    public String getInfo() {
+        return String.format("Заказ №%d:%nЗаказчик: %s, Заказанные книги:%n" + books.stream().map(Book::getName).toList(),
+                id, user.getId());
     }
 
     public int getId() {
@@ -38,8 +47,26 @@ public class Order {
         return books;
     }
 
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public double getSum() {
+        return books.stream()
+                .mapToDouble(Book::getPrice)
+                .sum();
+    }
+
+    public String getStatus() {
+        return status.toString();
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
     public void setStatus(String status) {
-        System.out.printf("%nТекущий статус заказа: %s", this.status.getClass());
+        System.out.printf("%nТекущий статус заказа: %s", this.status);
         switch (status) {
             case "new":
                 this.status = this.status.resetToNew(this);
@@ -55,7 +82,7 @@ public class Order {
                         "Докускается использование статусов \"new\", \"cancelled\", \"completed\"");
         }
 
-        System.out.printf("%nCтатус заказа после изменения: %s", this.status.getClass());
+        System.out.printf("%nCтатус заказа после изменения: %s", this.status);
     }
 
     public void addBook(Book book) {
