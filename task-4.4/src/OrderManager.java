@@ -28,18 +28,14 @@ public class OrderManager {
     }
 
     public List<Order> getSortedOrders(String sortBy, boolean isReversed) {
-        Comparator<Order> comparator;
-        switch (sortBy) {
-            case "completedAt":
-                comparator =  Comparator.comparing(Order::getCompletedAt, Comparator.nullsLast(LocalDateTime::compareTo));
-                break;
-            case "price":
-                comparator =  Comparator.comparing(Order::getSum);
-                break;
-            case "status":
-                comparator =  Comparator.comparing(Order::getStatus);
-                break;
-            default:
+        HashMap<String, Comparator<Order>> comparators = new HashMap<>() {{
+            put("completedAt", Comparator.comparing(Order::getCompletedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
+            put("price", Comparator.comparing(Order::getSum));
+            put("status", Comparator.comparing(Order::getStatus));
+        }};
+
+        Comparator<Order> comparator = comparators.get(sortBy);
+        if (comparator == null) {
                 throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
                         "Возможные значения параметра сортировки: completedAt, price, status");
         }

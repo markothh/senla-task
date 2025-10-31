@@ -1,7 +1,5 @@
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 
 public class RequestManager {
     private List<Request> requests = new ArrayList<>();
@@ -17,17 +15,15 @@ public class RequestManager {
     }
 
     public List<Request> getSortedRequests(String sortBy, boolean isReversed) {
-        Comparator<Request> comparator;
-        switch (sortBy) {
-            case "quantity":
-                comparator =  Comparator.comparing(Request::getQuantity);
-                break;
-            case "bookName":
-                comparator =  Comparator.comparing(Request::getBookName);
-                break;
-            default:
-                throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
-                        "Возможные значения параметра сортировки: quantity, bookName");
+        HashMap<String, Comparator<Request>> comparators = new HashMap<>() {{
+            put("quantity", Comparator.comparing(Request::getQuantity));
+            put("bookName", Comparator.comparing(Request::getBookName));
+        }};
+
+        Comparator<Request> comparator = comparators.get(sortBy);
+        if (comparator == null) {
+            throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: quantity, bookName");
         }
 
         if (isReversed) {

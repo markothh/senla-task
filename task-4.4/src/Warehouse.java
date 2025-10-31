@@ -1,8 +1,5 @@
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Warehouse {
     private List<Book> books = new ArrayList<>();
@@ -61,23 +58,17 @@ public class Warehouse {
     }
 
     public List<Book> getSortedBooks(String sortBy, boolean isReversed) {
-        Comparator<Book> comparator;
-        switch (sortBy) {
-            case "bookName":
-                comparator =  Comparator.comparing(Book::getName);
-                break;
-            case "price":
-                comparator =  Comparator.comparing(Book::getPrice);
-                break;
-            case "publishDate":
-                comparator =  Comparator.comparing(Book::getPublishYear);
-                break;
-            case "stockAvailability":
-                comparator =  Comparator.comparing(Book::getStockDate, Comparator.nullsLast(LocalDateTime::compareTo));
-                break;
-            default:
-                throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
-                        "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability");
+        HashMap<String, Comparator<Book>> comparators = new HashMap<>() {{
+            put("bookName", Comparator.comparing(Book::getName));
+            put("price", Comparator.comparing(Book::getPrice));
+            put("publishDate", Comparator.comparing(Book::getPublishYear));
+            put("stockAvailability", Comparator.comparing(Book::getStockDate, Comparator.nullsLast(LocalDateTime::compareTo)));
+        }};
+
+        Comparator<Book> comparator = comparators.get(sortBy);
+        if (comparator == null) {
+            throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability");
         }
 
         if (isReversed) {
