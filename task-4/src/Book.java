@@ -1,5 +1,6 @@
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.logging.Logger;
 
 public class Book {
     private static int nextId = 1;
@@ -20,7 +21,6 @@ public class Book {
 
     public Book(String name, String description, String author, String genre, double price, BookStatus status, int publishYear, LocalDateTime stockDate) {
         this.id = Book.nextId++;
-
         this.name = name;
         this.description = description;
         this.author = author;

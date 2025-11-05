@@ -1,9 +1,11 @@
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Order {
     private static int nextId = 1;
+    private static final Logger logger = Logger.getLogger(Order.class.getName());
 
     private int id;
     private User user;
@@ -65,21 +67,18 @@ public class Order {
         this.completedAt = completedAt;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(OrderStatus status) {
         System.out.printf("%nТекущий статус заказа: %s", this.status);
         switch (status) {
-            case "new":
+            case OrderStatus.NEW:
                 this.status = this.status.resetToNew(this);
                 break;
-            case "cancelled":
+            case OrderStatus.CANCELLED:
                 this.status = this.status.cancel(this);
                 break;
-            case "completed":
+            case OrderStatus.COMPLETED:
                 this.status = this.status.complete(this);
                 break;
-            default:
-                throw new IllegalStateException("Неверный статус. " +
-                        "Докускается использование статусов \"new\", \"cancelled\", \"completed\"");
         }
 
         System.out.printf("%nCтатус заказа после изменения: %s", this.status);

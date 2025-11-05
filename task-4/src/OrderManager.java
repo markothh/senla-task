@@ -1,5 +1,6 @@
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -17,7 +18,9 @@ public class OrderManager {
                 .findFirst();
 
         if (order.isEmpty()) {
-            throw new IllegalArgumentException("Заказ с указанным id не найден.");
+            String errMessage = "Заказ с указанным id не найден.";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         return order.get();
@@ -36,8 +39,10 @@ public class OrderManager {
 
         Comparator<Order> comparator = comparators.get(sortBy);
         if (comparator == null) {
-                throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
-                        "Возможные значения параметра сортировки: completedAt, price, status");
+            String errMessage = "Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: completedAt, price, status";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         if (isReversed) {
@@ -53,7 +58,7 @@ public class OrderManager {
         return getOrderById(orderId).getInfo();
     }
 
-    public void setOrderStatus(int orderId, String status) {
+    public void setOrderStatus(int orderId, OrderStatus status) {
         getOrderById(orderId).setStatus(status);
     }
 
@@ -77,6 +82,6 @@ public class OrderManager {
     }
 
     public void cancelOrder(int orderId) {
-        getOrderById(orderId).setStatus("cancelled");
+        getOrderById(orderId).setStatus(OrderStatus.CANCELLED);
     }
 }

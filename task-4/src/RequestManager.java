@@ -1,5 +1,6 @@
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class RequestManager {
     private List<Request> requests = new ArrayList<>();
@@ -22,8 +23,10 @@ public class RequestManager {
 
         Comparator<Request> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: quantity, bookName");
+            String errMessage = "Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: quantity, bookName";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         if (isReversed) {

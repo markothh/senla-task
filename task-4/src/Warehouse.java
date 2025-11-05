@@ -1,5 +1,6 @@
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class Warehouse {
     private List<Book> books = new ArrayList<>();
@@ -43,7 +44,9 @@ public class Warehouse {
                 .findFirst();
 
         if (book.isEmpty()) {
-            throw new IllegalArgumentException("Книга с указанным id не найдена");
+            String errMessage = "Книга с указанным id не найдена";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         return book.get();
@@ -67,8 +70,10 @@ public class Warehouse {
 
         Comparator<Book> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            throw new IllegalArgumentException("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability");
+            String errMessage = "Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         if (isReversed) {
@@ -86,7 +91,9 @@ public class Warehouse {
                 .findFirst();
 
         if (book.isEmpty()) {
-            throw new IllegalArgumentException("Книга с указанным названием не найдена");
+            String errMessage = "Книга с указанным названием не найдена";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
         return book.get();

@@ -1,3 +1,5 @@
+import java.util.logging.Logger;
+
 public class CancelledOrderStatus implements IOrderStatus {
     @Override
     public IOrderStatus resetToNew(Order order) {
@@ -6,7 +8,9 @@ public class CancelledOrderStatus implements IOrderStatus {
 
     @Override
     public IOrderStatus complete(Order order) {
-        throw new IllegalStateException("Невозможно выполнить отмененный заказ.");
+        String errMessage = "Невозможно выполнить отмененный заказ.";
+        Logger.getGlobal().severe(errMessage);
+        throw new IllegalStateException(errMessage);
     }
 
     @Override

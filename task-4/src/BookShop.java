@@ -1,5 +1,6 @@
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class BookShop {
     private final RequestManager requestManager = new RequestManager();
@@ -20,7 +21,7 @@ public class BookShop {
         orderManager.cancelOrder(orderId);
     }
 
-    public void setOrderStatus(int orderId, String status) {
+    public void setOrderStatus(int orderId, OrderStatus status) {
         orderManager.setOrderStatus(orderId, status);
     }
 
@@ -31,10 +32,13 @@ public class BookShop {
 
     public int createBookRequest(String bookName) {
         if (warehouse.isBookAvailable(bookName)) {
-            throw new IllegalArgumentException("Невозможно создать заказ на книгу, которая есть в наличии.");
+            String errMessage = "Невозможно создать заказ на книгу, которая есть в наличии.";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalArgumentException(errMessage);
         }
 
-        return requestManager.createRequest(warehouse.getBookByName(bookName)).getId();
+        Book bookToRequest = warehouse.getBookByName(bookName);
+        return requestManager.createRequest(bookToRequest).getId();
     }
 
     //----------------------------------------Task 4--------------------------------------------

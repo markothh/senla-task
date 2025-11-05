@@ -1,9 +1,15 @@
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Task {
     public static void main() {
+        setupLogs();
+
         User user = new User("markothh");
         BookShop bookShop = new BookShop();
 
@@ -26,12 +32,11 @@ public class Task {
         bookShop.cancelOrder(orderId);
 
         System.out.println("\n----------------Изменение статуса заказа----------------");
-        bookShop.setOrderStatus(orderId, "new");
-        //bookShop.setOrderStatus(orderId, "completed");
+        bookShop.setOrderStatus(orderId, OrderStatus.NEW);
 
         System.out.println("\n----------------Добавление книги на склад----------------");
         bookShop.addBookToStock("Фауст");
-        bookShop.setOrderStatus(orderId, "completed"); //проверка возможности выполнить заказ
+        bookShop.setOrderStatus(orderId, OrderStatus.COMPLETED);
 
         System.out.println("\n----------------Создание запроса на книгу----------------");
         bookShop.createBookRequest("Моби Дик");
@@ -40,29 +45,15 @@ public class Task {
         bookShop.createBookRequest("Моби Дик");
         bookShop.createBookRequest("Скотный двор");
         bookShop.createBookRequest("Моби Дик");
-        //bookShop.createBookRequest("Моб Дик");
-        //bookShop.createBookRequest("Фауст");
 
         //----------------------------------------Task 4--------------------------------------------
         System.out.println("\n----------------Просмотр списка книг----------------");
-        //System.out.printf("Все книги: %s", bookShop.getBooks());
         System.out.printf("%n%nКниги, отсортированные по алфавиту, порядок - обратный: %s",
                 bookShop.getBooks("bookName", true));
-        //System.out.printf("%n%nКниги, отсортированные по дате публикации, порядок - прямой: %s",
-                //bookShop.getBooks("publishDate", false));
-        //System.out.printf("%n%nКниги, отсортированные по цене, порядок - обратный: %s",
-                //bookShop.getBooks("price", true));
-        //System.out.printf("%n%nКниги, отсортированные по наличию на складе, порядок - прямой: %s",
-                //bookShop.getBooks("stockAvailability", false));
 
         System.out.println("\n----------------Просмотр списка заказов----------------");
-        //System.out.printf("Все заказы: %s", bookShop.getOrders());
         System.out.printf("%n%nЗаказы, отсортированные по дате выполнения, порядок - обратный: %s",
                 bookShop.getOrders("completedAt", true));
-        //System.out.printf("%n%nЗаказы, отсортированные по цене, порядок - прямой: %s",
-                //bookShop.getOrders("price", false));
-        //System.out.printf("%n%nЗаказы, отсортированные по статусу, порядок - прямой: %s",
-                //bookShop.getOrders("status", false));
 
         System.out.println("\n----------------Просмотр списка запросов----------------");
         System.out.printf("Все запросы: %s", bookShop.getRequests());
@@ -90,5 +81,17 @@ public class Task {
                 bookShop.getOrderDetails(orderId));
         System.out.println("\n----------------Просмотр описания книги----------------");
         System.out.println(bookShop.getBookDescription("Анна Каренина"));
+    }
+
+    private static void setupLogs() {
+        try {
+            FileHandler fileHandler = new FileHandler("bookshop.log", true);
+            fileHandler.setFormatter(new SimpleFormatter());
+            Logger logger = Logger.getGlobal();
+            logger.addHandler(fileHandler);
+        }
+        catch (IOException e) {
+            System.err.println("Ошибка настройки логирования");
+        }
     }
 }

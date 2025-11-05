@@ -1,5 +1,5 @@
 import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.logging.Logger;
 
 public class NewOrderStatus implements IOrderStatus {
     @Override
@@ -11,10 +11,12 @@ public class NewOrderStatus implements IOrderStatus {
     public IOrderStatus complete(Order order) {
         if (order.areBooksAvailable()) {
             order.setCompletedAt(LocalDateTime.now());
-            return new CompleteOrderStatus();
+            return new CompletedOrderStatus();
         }
         else {
-            throw new IllegalStateException("Нельзя выполнить заказ, если не все книги доступны");
+            String errMessage = "Нельзя выполнить заказ, если не все книги доступны";
+            Logger.getGlobal().severe(errMessage);
+            throw new IllegalStateException(errMessage);
         }
     }
 
