@@ -1,0 +1,14 @@
+нояб. 09, 2025 6:33:26 PM Model.Service.Warehouse getBookByName
+SEVERE: Книга с указанным названием не найдена
+нояб. 09, 2025 6:39:49 PM Model.Service.Warehouse getBookByName
+SEVERE: Книга с указанным названием не найдена
+нояб. 09, 2025 7:33:17 PM Model.Service.Warehouse getBookByName
+SEVERE: Книга с указанным названием не найдена
+нояб. 09, 2025 7:52:48 PM Model.Service.Warehouse getBookByName
+SEVERE: Книга с указанным названием не найдена
+нояб. 09, 2025 7:54:58 PM Model.Service.OrderManager getOrderById
+SEVERE: Заказ с указанным id не найден.
+нояб. 09, 2025 8:05:38 PM Model.BookShop createBookRequest
+SEVERE: Невозможно создать заказ на книгу, которая есть в наличии.
+нояб. 09, 2025 8:06:21 PM Model.Service.OrderManager getSortedOrders
+SEVERE: Невозможна сортировка по указанному полю. Возможные значения параметра сортировки: completedAt, price, status
