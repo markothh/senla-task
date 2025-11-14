@@ -12,8 +12,14 @@ import java.util.Scanner;
 public class AdminOrderMenu extends Menu {
     public AdminOrderMenu(Menu previousMenu) {
         super(previousMenu);
-        this.name = "Управление заказами";
-        this.menuItems = new MenuItem[] {
+        this.name = NAME;
+        this.menuItems = generateMenuItems();
+    }
+
+    private final String NAME = "Управление заказами";
+
+    private MenuItem[] generateMenuItems() {
+        return new MenuItem[] {
                 new MenuItem("Создать заказ", () -> {
                     System.out.println("Введите список книг, которые хотите заказать, через запятую в одну строку");
                     List<String> books = Arrays.asList(new Scanner(System.in).nextLine()

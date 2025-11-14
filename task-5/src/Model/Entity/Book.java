@@ -2,7 +2,7 @@ package Model.Entity;
 
 import Model.Enum.BookStatus;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public class Book {
     private static int nextId = 1;
@@ -15,13 +15,13 @@ public class Book {
     private double price;
     private BookStatus status;
     private int publishYear;
-    private LocalDateTime stockDate;
+    private LocalDate stockDate;
 
     private void resetStockDate() {
-        stockDate = status == BookStatus.IN_STOCK ? LocalDateTime.now() : null;
+        stockDate = status == BookStatus.IN_STOCK ? LocalDate.now() : null;
     }
 
-    public Book(String name, String description, String author, String genre, double price, BookStatus status, int publishYear, LocalDateTime stockDate) {
+    public Book(String name, String description, String author, String genre, double price, BookStatus status, int publishYear, LocalDate stockDate) {
         this.id = Book.nextId++;
         this.name = name;
         this.description = description;
@@ -65,7 +65,7 @@ public class Book {
         return price;
     }
 
-    public LocalDateTime getStockDate() {
+    public LocalDate getStockDate() {
         return stockDate;
     }
 

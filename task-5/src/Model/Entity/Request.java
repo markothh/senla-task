@@ -1,18 +1,18 @@
 package Model.Entity;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public class Request {
     private static int nextId = 1;
 
     private int id;
-    private LocalDateTime createdAt;
+    private LocalDate createdAt;
     private final Book book;
     private int quantity;
 
     public Request(Book book) {
         this.id = Request.nextId++;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDate.now();
         this.quantity = 1;
 
         this.book = book;

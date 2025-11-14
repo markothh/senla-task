@@ -3,7 +3,7 @@ package Model.Service;
 import Model.Entity.Book;
 import Model.Entity.Order;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
@@ -18,7 +18,7 @@ public class StatisticsCollector {
         this.warehouse = warehouse;
     }
 
-    public List<Order> getCompletedOrdersByPeriod(LocalDateTime startDate, LocalDateTime endDate) {
+    public List<Order> getCompletedOrdersByPeriod(LocalDate startDate, LocalDate endDate) {
         return orderManager.getOrders().stream()
                 .filter(o -> o.getCompletedAt() != null)
                 .filter(o -> o.getCompletedAt().isBefore(endDate) && o.getCompletedAt().isAfter(startDate))
@@ -26,7 +26,7 @@ public class StatisticsCollector {
     }
 
 
-    public double getIncomeByPeriod(LocalDateTime startDate, LocalDateTime endDate) {
+    public double getIncomeByPeriod(LocalDate startDate, LocalDate endDate) {
         return orderManager.getOrders().stream()
                 .filter(o -> o.getCompletedAt() != null)
                 .filter(o -> o.getCompletedAt().isBefore(endDate) && o.getCompletedAt().isAfter(startDate))
@@ -37,7 +37,7 @@ public class StatisticsCollector {
     public List<Book> getOverstockedBooks( int monthsToStayInStock) {
         return warehouse.getBooks().stream()
                 .filter(b -> b.getStockDate() != null)
-                .filter(b -> b.getStockDate().isBefore(LocalDateTime.now().minusMonths(monthsToStayInStock)))
+                .filter(b -> b.getStockDate().isBefore(LocalDate.now().minusMonths(monthsToStayInStock)))
                 .sorted(Comparator.comparing(Book::getStockDate)
                                   .thenComparing(Book::getPrice))
                 .toList();

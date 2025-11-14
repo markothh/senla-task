@@ -10,7 +10,7 @@ import Model.Service.RequestManager;
 import Model.Service.StatisticsCollector;
 import Model.Service.Warehouse;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Logger;
@@ -32,7 +32,6 @@ public class BookShop {
         return INSTANCE;
     }
 
-    Scanner scanner = new Scanner(System.in);
     //----------------------------------------Task 3--------------------------------------------
     public void removeBookFromStock(String bookName) {
         warehouse.removeFromStock(bookName);
@@ -69,45 +68,45 @@ public class BookShop {
     //----------------------------------------Task 4--------------------------------------------
     public List<Book> getBooks() {
         return warehouse.getBooks();
-    };
+    }
 
     public List<Book> getBooks(String sortBy, boolean isReversed) {
         return warehouse.getSortedBooks(sortBy, isReversed);
-    };
+    }
 
     public List<Order> getOrders() {
         return orderManager.getOrders();
-    };
+    }
 
     public List<Order> getOrders(String sortBy, boolean isReversed) {
         return orderManager.getSortedOrders(sortBy, isReversed);
-    };
+    }
 
     public List<Request> getRequests() {
         return requestManager.getRequests();
-    };
+    }
 
     public List<Request> getRequests(String sortBy, boolean isReversed) {
         return requestManager.getSortedRequests(sortBy, isReversed);
-    };
+    }
 
-    public List<Order> getCompletedOrdersByPeriod(LocalDateTime startDate, LocalDateTime endDate) {
+    public List<Order> getCompletedOrdersByPeriod(LocalDate startDate, LocalDate endDate) {
         return statistics.getCompletedOrdersByPeriod(startDate, endDate);
-    };
+    }
 
-    public double getIncomeByPeriod(LocalDateTime startDate, LocalDateTime endDate) {
+    public double getIncomeByPeriod(LocalDate startDate, LocalDate endDate) {
         return statistics.getIncomeByPeriod(startDate, endDate);
-    };
+    }
 
     public List<Book> getOverstockedBooks() {
         return statistics.getOverstockedBooks(6);
-    };
+    }
 
     public String getOrderDetails(int orderId) {
         return orderManager.getOrderInfo(orderId);
-    };
+    }
 
     public String getBookDescription(String bookName) {
         return warehouse.getDescriptionByBookName(bookName);
-    };
+    }
 }

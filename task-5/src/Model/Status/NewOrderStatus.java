@@ -2,7 +2,7 @@ package Model.Status;
 
 import Model.Entity.Order;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.logging.Logger;
 
 public class NewOrderStatus implements IOrderStatus {
@@ -14,7 +14,7 @@ public class NewOrderStatus implements IOrderStatus {
     @Override
     public IOrderStatus complete(Order order) {
         if (order.areBooksAvailable()) {
-            order.setCompletedAt(LocalDateTime.now());
+            order.setCompletedAt(LocalDate.now());
             return new CompletedOrderStatus();
         }
         else {

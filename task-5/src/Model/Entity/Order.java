@@ -4,30 +4,29 @@ import Model.Status.IOrderStatus;
 import Model.Status.NewOrderStatus;
 import Model.Enum.OrderStatus;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
 public class Order {
     private static int nextId = 1;
-    private static final Logger logger = Logger.getLogger(Order.class.getName());
 
     private int id;
     private User user;
     private List<Book> books = new ArrayList<>();
-    private LocalDateTime createdAt;
-    private LocalDateTime completedAt;
+    private LocalDate createdAt;
+    private LocalDate completedAt;
     private IOrderStatus status;
 
 
     public Order(User user) {
         this.id = Order.nextId++;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDate.now();
         this.status = new NewOrderStatus();
 
         this.user = user;
-    };
+    }
 
     @Override
     public String toString() {
@@ -55,7 +54,7 @@ public class Order {
         return books;
     }
 
-    public LocalDateTime getCompletedAt() {
+    public LocalDate getCompletedAt() {
         return completedAt;
     }
 
@@ -69,7 +68,7 @@ public class Order {
         return status.toString();
     }
 
-    public void setCompletedAt(LocalDateTime completedAt) {
+    public void setCompletedAt(LocalDate completedAt) {
         this.completedAt = completedAt;
     }
 

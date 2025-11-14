@@ -9,9 +9,17 @@ public class OrderActionsMenu extends Menu {
     private int orderId;
     public OrderActionsMenu(Menu previousMenu) {
         super(previousMenu);
+
+        this.name = NAME;
+        this.menuItems = generateMenuItems();
+    }
+
+    private final String NAME = "Выбор действия с заказом";
+
+    private MenuItem[] generateMenuItems() {
         Scanner scanner = new Scanner(System.in);
-        this.name = "Выбор действия с заказом";
-        this.menuItems = new MenuItem[] {
+
+        return new MenuItem[] {
                 new MenuItem("Отменить заказ", () -> {
                     System.out.println("Введите номер заказа");
                     this.orderId = scanner.nextInt();

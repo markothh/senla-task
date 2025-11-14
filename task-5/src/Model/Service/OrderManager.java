@@ -5,7 +5,7 @@ import Model.Entity.Order;
 import Model.Entity.User;
 import Model.Enum.OrderStatus;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -37,7 +37,7 @@ public class OrderManager {
 
     public List<Order> getSortedOrders(String sortBy, boolean isReversed) {
         HashMap<String, Comparator<Order>> comparators = new HashMap<>() {{
-            put("completedAt", Comparator.comparing(Order::getCompletedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
+            put("completedAt", Comparator.comparing(Order::getCompletedAt, Comparator.nullsLast(LocalDate::compareTo)));
             put("price", Comparator.comparing(Order::getSum));
             put("status", Comparator.comparing(Order::getStatus));
         }};
@@ -71,7 +71,7 @@ public class OrderManager {
         Order order = new Order(user);
         for (Book book : books) {
             if (!book.isAvailable()) {
-                System.out.printf("%nКниги \'%s\' нет на складе. Создается запрос...", book.getName());
+                System.out.printf("%nКниги '%s' нет на складе. Создается запрос...", book.getName());
                 requestManager.createRequest(book);
             }
 
@@ -82,7 +82,6 @@ public class OrderManager {
 
         System.out.printf("%nСоздан заказ: %n%s", order);
 
-        System.out.printf("");
         return order;
     }
 

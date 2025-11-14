@@ -8,8 +8,14 @@ import java.util.Scanner;
 public class AdminRequestMenu extends Menu {
     public AdminRequestMenu(Menu previousMenu) {
         super(previousMenu);
-        this.name = "Управление запросами";
-        this.menuItems = new MenuItem[] {
+        this.name = NAME;
+        this.menuItems = generteMenuItems();
+    }
+
+    private final String NAME = "Управление запросами";
+
+    private MenuItem[] generteMenuItems() {
+        return new MenuItem[] {
                 new MenuItem("Создать запрос на книгу", () -> {
                     System.out.println("Введите название книги, на которую хотите оставить запрос");
                     bookShop.createBookRequest(new Scanner(System.in).nextLine());
@@ -17,5 +23,4 @@ public class AdminRequestMenu extends Menu {
                 new MenuItem("Просмотреть все активные запросы", () -> {}, new RequestSortFieldMenu(this))
         };
     }
-
 }

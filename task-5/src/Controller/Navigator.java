@@ -15,7 +15,8 @@ public class Navigator {
         System.out.println("--------------------------------------------------------------------------------");
         System.out.println("0 - Выход");
         System.out.println("-1 - Назад");
-    };
+    }
+
     public void navigate(Integer index) {
         if (index == 0) {
             System.exit(0);
@@ -30,7 +31,7 @@ public class Navigator {
                 setCurrentMenu(nextMenu);
             }
         }
-    };
+    }
 
     public void setCurrentMenu(Menu currentMenu) {
         this.currentMenu = currentMenu;
