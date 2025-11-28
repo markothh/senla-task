@@ -24,17 +24,12 @@ public class AppState implements Serializable {
     private static void loadItems(String filePath) {
         try (ObjectInputStream is = new ObjectInputStream(new FileInputStream(filePath))) {
             is.readObject();
-
-            String infoMessage = String.format("Данные из файла %s загружены. ", filePath);
-            System.out.println(infoMessage);
-            Logger.getGlobal().warning(infoMessage);
+            Logger.getGlobal().warning(String.format("Данные из файла %s загружены. ", filePath));
         }
         catch (IOException | ClassNotFoundException e) {
-            String errMessage = String.format("Произошла ошибка при загрузке состояния программы. " +
-                    "Работа будет продолжена с пустыми списками объектов." +
-                    "Файл: %s", filePath);
-            System.out.println(errMessage);
-            Logger.getGlobal().warning(errMessage);
+            Logger.getGlobal().warning(String.format("Произошла ошибка при загрузке состояния программы. " +
+                    "Работа будет продолжена с пустым списком объектов." +
+                    "Файл: %s", filePath));
         }
     }
 

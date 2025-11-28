@@ -167,6 +167,4 @@ public class BookShop {
     public List<User> getUsers() {
         return userService.getUsers();
     }
-
-    //----------------------------------------Task 7--------------------------------------------
 }

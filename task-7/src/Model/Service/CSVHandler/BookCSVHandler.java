@@ -46,9 +46,7 @@ public class BookCSVHandler implements ICSVHandler<Book> {
             Logger.getGlobal().info(String.format("Книги были экспортированы в файл: \"%s\"", filePath));
         }
         catch (IOException e) {
-            String errMessage = "Не удалось открыть для записи указанный файл";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
         }
     }
 
@@ -61,30 +59,30 @@ public class BookCSVHandler implements ICSVHandler<Book> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                String[] args = line.split(";");
-                result.add(new Book(
-                        Integer.parseInt(args[0]),
-                        args[1],
-                        args[2],
-                        args[3],
-                        args[4],
-                        Double.parseDouble(args[5]),
-                        BookStatus.valueOf(args[6]),
-                        Integer.parseInt(args[7]),
-                        args.length > 8 && !args[8].isBlank() ? LocalDate.parse(args[8]) : null
-                ));
+                result.add(parseBook(line));
             }
             System.out.println("Книги были успешно импортированы из указанного файла");
         } catch (FileNotFoundException e) {
-            String errMessage = "Не удалось открыть для чтения указанный файл.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
         } catch (IOException e) {
-            String errMessage = "Ошибка чтения из указанного файла.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
         }
         Logger.getGlobal().info(String.format("Книги были импортированы из файла: \"%s\"", filePath));
         return result;
+    }
+
+    private Book parseBook(String bookData) {
+        String[] args = bookData.split(";");
+        return new Book(
+                Integer.parseInt(args[0]),
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+                Double.parseDouble(args[5]),
+                BookStatus.valueOf(args[6]),
+                Integer.parseInt(args[7]),
+                args.length > 8 && !args[8].isBlank() ? LocalDate.parse(args[8]) : null
+        );
     }
 }

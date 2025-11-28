@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 public class RequestCSVHandler implements ICSVHandler<Request> {
@@ -43,9 +44,7 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
             Logger.getGlobal().info(String.format("Запросы были экспортированы в файл: \"%s\"", filePath));
         }
         catch (IOException e) {
-            String errMessage = "Не удалось открыть для записи указанный файл";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
         }
     }
 
@@ -58,35 +57,38 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                String[] args = line.split(";");
-                try {
-                    result.add(new Request(
-                            Integer.parseInt(args[0]),
-                            !args[1].isBlank() ? LocalDate.parse(args[1]) : null,
-                            findBook(Integer.parseInt(args[2])),
-                            Integer.parseInt(args[3])
-                    ));
-                }
-                catch (NoSuchElementException e) {
-                    System.out.printf("Не удалось установить соответствия между сущностями. Запрос №%s не был импортирован.", args[0]);
-                }
+                result.add(parseRequest(line));
             }
 
-            System.out.println("Запросы были успешно импортированы из указанного файла");
             Logger.getGlobal().info(String.format("Запросы были импортированы из файла: \"%s\"", filePath));
         } catch (FileNotFoundException e) {
-            String errMessage = "Не удалось открыть для чтения указанный файл.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
         } catch (IOException e) {
-            String errMessage = "Ошибка чтения из указанного файла.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
         }
-        return result;
+        return result
+                .stream()
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private Book findBook(int bookId) {
         return bookRepository.getBookById(bookId);
+    }
+
+    private Request parseRequest(String requestData) {
+        String[] args = requestData.split(";");
+        try {
+            return new Request(
+                    Integer.parseInt(args[0]),
+                    !args[1].isBlank() ? LocalDate.parse(args[1]) : null,
+                    findBook(Integer.parseInt(args[2])),
+                    Integer.parseInt(args[3])
+            );
+        }
+        catch (NoSuchElementException e) {
+            System.out.printf("Не удалось установить соответствия между сущностями. Запрос №%s не был импортирован.", args[0]);
+            return null;
+        }
     }
 }

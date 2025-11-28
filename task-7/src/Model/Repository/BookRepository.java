@@ -6,6 +6,7 @@ import Model.Service.CSVHandler.CSVHandlers;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 public class BookRepository implements Serializable {
@@ -19,30 +20,16 @@ public class BookRepository implements Serializable {
         return INSTANCE;
     }
 
-    public Book getBookById(int bookId) {
-        return books.stream()
-                .filter(b -> b.getId() == bookId)
-                .findFirst()
-                .orElseThrow(() -> {
-                    String errMessage = String.format("Книга с указанным id = %d не найдена", bookId);
-                    Logger.getGlobal().severe(errMessage);
-                    return new NoSuchElementException(errMessage);
-                });
-    }
-
     public List<Book> getBooks() {
         return books;
     }
 
+    public Book getBookById(int bookId) {
+        return findBook(b -> b.getId() == bookId);
+    }
+
     public Book getBookByName(String bookName) {
-        return books.stream()
-                .filter(b -> b.getName().equals(bookName))
-                .findFirst()
-                .orElseThrow(() -> {
-                    String errMessage = String.format("Книга с указанным id = %s не найдена", bookName);
-                    Logger.getGlobal().severe(errMessage);
-                    return new NoSuchElementException(errMessage);
-                });
+        return findBook(b -> b.getName().equals(bookName));
     }
 
     public void setData(List<Book> books) {
@@ -76,5 +63,16 @@ public class BookRepository implements Serializable {
             INSTANCE.books = this.books;
         }
         return INSTANCE;
+    }
+
+    private Book findBook(Predicate<Book> filter) {
+        return books.stream()
+                .filter(filter)
+                .findFirst()
+                .orElseThrow(() -> {
+                    String errMessage = "Книга с указанными данными не найдена";
+                    Logger.getGlobal().severe(errMessage);
+                    return new NoSuchElementException(errMessage);
+                });
     }
 }

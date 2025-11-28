@@ -35,13 +35,10 @@ public class UserCSVHandler implements ICSVHandler<User>{
                 );
             }
 
-            System.out.println("Пользователи успешно экспортированы в указанный файл.");
             Logger.getGlobal().info(String.format("Пользователи были экспортированы в файл: \"%s\"", filePath));
         }
         catch (IOException e) {
-            String errMessage = "Не удалось открыть для записи указанный файл";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
         }
     }
 
@@ -54,26 +51,25 @@ public class UserCSVHandler implements ICSVHandler<User>{
             String line;
 
             while ((line = reader.readLine()) != null) {
-                String[] args = line.split(";");
-                result.add(new User(
-                        Integer.parseInt(args[0]),
-                        args[1],
-                        args[2],
-                        UserRole.valueOf(args[3])
-                ));
+                result.add(parseUser(line));
             }
 
-            System.out.println("Пользователи были успешно импортированы из указанного файла");
             Logger.getGlobal().info(String.format("Пользователи были импортированы из файла: \"%s\"", filePath));
         } catch (FileNotFoundException e) {
-            String errMessage = "Не удалось открыть для чтения указанный файл.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
         } catch (IOException e) {
-            String errMessage = "Ошибка чтения из указанного файла.";
-            System.out.println(errMessage);
-            Logger.getGlobal().severe(errMessage);
+            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
         }
         return result;
+    }
+
+    private User parseUser(String userData) {
+        String[] args = userData.split(";");
+        return new User(
+                Integer.parseInt(args[0]),
+                args[1],
+                args[2],
+                UserRole.valueOf(args[3])
+        );
     }
 }
