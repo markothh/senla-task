@@ -24,7 +24,7 @@ public class BookShop {
     private final BookService bookService = new BookService();
     private final UserService userService = new UserService();
     private final StatisticsService statistics = new StatisticsService(requestService, orderService, bookService);
-    private final AppConfig appConfig = new AppConfig("config.properties");
+    private final AppConfig appConfig = new AppConfig();
 
     private BookShop() {
         AppState.loadState();
