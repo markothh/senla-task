@@ -1,0 +1,12 @@
+id;name;password;role
+1;markothh;admin;ADMIN
+2;user1;123123;USER
+3;user2;123123;USER
+4;ivan;admin;ADMIN
+5;user3;123123;USER
+4;admin;admin;ADMIN
+5;user4;456456;USER
+6;admin;admin;ADMIN
+10;user4;456456;USER
+8;admin;admin;ADMIN
+3;usernull;456456;USER

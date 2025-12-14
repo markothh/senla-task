@@ -1,5 +1,4 @@
 import Controller.MenuController;
-import Model.BookShop;
 
 import java.io.IOException;
 import java.util.logging.FileHandler;
