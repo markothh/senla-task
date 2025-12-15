@@ -1,5 +1,6 @@
 package Model.Service;
 
+import Model.Annotations.Inject;
 import Model.Entity.User;
 import Model.Repository.UserRepository;
 
@@ -7,7 +8,9 @@ import java.util.List;
 import java.util.Optional;
 
 public class UserService {
-    private final UserRepository userRepository = UserRepository.getInstance();
+    private static UserService INSTANCE;
+    @Inject
+    private UserRepository userRepository;
 
     public Optional<User> getUserById(int userId) {
         return userRepository.getUsers().stream()
@@ -44,4 +47,13 @@ public class UserService {
     public void importRequests(String filePath) {
         userRepository.importToCSV(filePath);
     }
+
+    public static UserService getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new UserService();
+        }
+        return INSTANCE;
+    }
+
+    private UserService() {}
 }

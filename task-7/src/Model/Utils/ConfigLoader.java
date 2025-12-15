@@ -1,4 +1,4 @@
-package Model.Config;
+package Model.Utils;
 
 import Model.Annotations.ConfigProperty;
 
@@ -8,7 +8,7 @@ import java.lang.reflect.Field;
 import java.util.Properties;
 
 public class ConfigLoader {
-    public void configure(Object target) {
+    public static void configure(Object target) {
         Class<?> c = target.getClass();
 
         for (Field field: c.getDeclaredFields()) {
@@ -40,7 +40,7 @@ public class ConfigLoader {
         }
     }
 
-    private String resolvePropertyName(ConfigProperty cp, Class<?> c, Field field) {
+    private static String resolvePropertyName(ConfigProperty cp, Class<?> c, Field field) {
         if (!cp.propertyName().isEmpty()) {
             return cp.propertyName();
         }
@@ -48,8 +48,8 @@ public class ConfigLoader {
         return c.getSimpleName()+"."+field.getName();
     }
 
-    private Properties loadProperties(String fileName) {
-        try (InputStream config = getClass().getClassLoader().getResourceAsStream(fileName)) {
+    private static Properties loadProperties(String fileName) {
+        try (InputStream config = ConfigLoader.class.getClassLoader().getResourceAsStream(fileName)) {
             if (config == null) {
                 throw new RuntimeException("Не удалось получить файл конфигурации");
             }

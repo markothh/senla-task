@@ -1,14 +1,11 @@
 package Model.Config;
 import Model.Annotations.ConfigProperty;
-import java.util.ArrayList;
-
 public class AppConfig {
+    private static AppConfig INSTANCE;
     @ConfigProperty(propertyName = "staleMonths")
     private int staleMonths;
     @ConfigProperty(propertyName = "autoCompleteRequests")
     private boolean autoCompleteRequests;
-    @ConfigProperty(propertyName = "dataPaths")
-    private ArrayList<String> dataPaths = new ArrayList<>();
 
     public int getStaleMonths() {
         return staleMonths;
@@ -18,7 +15,12 @@ public class AppConfig {
         return autoCompleteRequests;
     }
 
-    public ArrayList<String> getDataFiles() {
-        return dataPaths;
+    public static AppConfig getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new AppConfig();
+        }
+        return INSTANCE;
     }
+
+    private AppConfig() {}
 }

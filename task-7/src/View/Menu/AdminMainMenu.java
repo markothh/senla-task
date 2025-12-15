@@ -1,6 +1,7 @@
 package View.Menu;
 
 import View.MenuItem;
+import View.MenuProvider;
 
 public class AdminMainMenu extends Menu {
     public AdminMainMenu() {
@@ -12,11 +13,11 @@ public class AdminMainMenu extends Menu {
 
     private MenuItem[] generateMenuItems() {
         return new MenuItem[] {
-                    new MenuItem("Управление пользователями", () -> {}, new UserMenu(this)),
-                    new MenuItem("Управление книгами", () -> {}, new AdminBookMenu(this)),
-                    new MenuItem("Управление заказами", () -> {}, new AdminOrderMenu(this)),
-                    new MenuItem("Управление запросами", () -> {}, new AdminRequestMenu(this)),
-                    new MenuItem("Просмотр статистики", () -> {}, new AdminStatisticsMenu(this))
+                    new MenuItem("Управление пользователями", () -> {}, MenuProvider.create(new UserMenu(this))),
+                    new MenuItem("Управление книгами", () -> {}, MenuProvider.create(new AdminBookMenu(this))),
+                    new MenuItem("Управление заказами", () -> {}, MenuProvider.create(new AdminOrderMenu(this))),
+                    new MenuItem("Управление запросами", () -> {}, MenuProvider.create(new AdminRequestMenu(this))),
+                    new MenuItem("Просмотр статистики", () -> {}, MenuProvider.create(new AdminStatisticsMenu(this)))
         };
     }
 }

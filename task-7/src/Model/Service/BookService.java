@@ -1,5 +1,6 @@
 package Model.Service;
 
+import Model.Annotations.Inject;
 import Model.Entity.Book;
 import Model.Repository.BookRepository;
 
@@ -8,7 +9,9 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public class BookService {
-    private final BookRepository bookRepository = BookRepository.getInstance();
+    private static BookService INSTANCE;
+    @Inject
+    private BookRepository bookRepository;
 
     public List<Book> getBooks() {
         return bookRepository.getBooks();
@@ -84,4 +87,13 @@ public class BookService {
     public void importBooks(String filePath) {
         bookRepository.importBooks(filePath);
     }
+
+    public static BookService getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new BookService();
+        }
+        return INSTANCE;
+    }
+
+    private BookService() {};
 }
