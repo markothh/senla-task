@@ -1,5 +1,6 @@
 package Model.Service;
 
+import Model.Annotations.Inject;
 import Model.Entity.Book;
 import Model.Entity.Request;
 import Model.Repository.RequestRepository;
@@ -8,7 +9,9 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public class RequestService {
-    private final RequestRepository requestRepository = RequestRepository.getInstance();
+    private static RequestService INSTANCE;
+    @Inject
+    private RequestRepository requestRepository;
 
     public List<Request> getRequests() {
         return requestRepository.getRequests();
@@ -69,4 +72,13 @@ public class RequestService {
         requestRepository.importToCSV(filePath);
 
     }
+
+    public static RequestService getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new RequestService();
+        }
+        return INSTANCE;
+    }
+
+    private RequestService() {}
 }

@@ -2,6 +2,7 @@ package View.Menu.Operations;
 
 import View.Menu.Menu;
 import View.MenuItem;
+import View.MenuProvider;
 
 public class BookSortFieldMenu extends Menu {
     public BookSortFieldMenu(Menu previousMenu) {
@@ -14,10 +15,10 @@ public class BookSortFieldMenu extends Menu {
 
     private MenuItem[] generateMenuItems() {
         return new MenuItem[] {
-                new MenuItem("Название", () -> {}, new BookSortOrderMenu("bookName", this)),
-                new MenuItem("Цена", () -> {}, new BookSortOrderMenu("price", this)),
-                new MenuItem("Дата издания", () -> {}, new BookSortOrderMenu("publishDate", this)),
-                new MenuItem("Наличие на складе", () -> {}, new BookSortOrderMenu("stockAvailability", this))
+                new MenuItem("Название", () -> {}, MenuProvider.create(new BookSortOrderMenu("bookName", this))),
+                new MenuItem("Цена", () -> {}, MenuProvider.create(new BookSortOrderMenu("price", this))),
+                new MenuItem("Дата издания", () -> {}, MenuProvider.create(new BookSortOrderMenu("publishDate", this))),
+                new MenuItem("Наличие на складе", () -> {}, MenuProvider.create(new BookSortOrderMenu("stockAvailability", this)))
         };
     }
 }

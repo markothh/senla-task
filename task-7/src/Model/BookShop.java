@@ -1,5 +1,6 @@
 package Model;
 
+import Model.Annotations.Inject;
 import Model.Config.AppConfig;
 import Model.Config.AppState;
 import Model.Entity.Book;
@@ -8,6 +9,7 @@ import Model.Entity.Request;
 import Model.Entity.User;
 import Model.Enum.OrderStatus;
 import Model.Service.*;
+import Model.Utils.ConfigLoader;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,15 +20,21 @@ import java.util.logging.Logger;
 public class BookShop {
     private static BookShop INSTANCE;
     public static Scanner SCANNER = new Scanner(System.in);
-
-    private final RequestService requestService = new RequestService();
-    private final OrderService orderService = new OrderService(requestService);
-    private final BookService bookService = new BookService();
-    private final UserService userService = new UserService();
-    private final StatisticsService statistics = new StatisticsService(requestService, orderService, bookService);
-    private final AppConfig appConfig = new AppConfig("config.properties");
+    @Inject
+    private RequestService requestService;
+    @Inject
+    private OrderService orderService;
+    @Inject
+    private BookService bookService;
+    @Inject
+    private UserService userService;
+    @Inject
+    private StatisticsService statistics;
+    @Inject
+    private AppConfig appConfig;
 
     private BookShop() {
+        ConfigLoader.configure(new AppState());
         AppState.loadState();
     }
 

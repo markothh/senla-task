@@ -1,5 +1,6 @@
 package Model.Config;
 
+import Model.Annotations.ConfigProperty;
 import Model.Repository.BookRepository;
 import Model.Repository.OrderRepository;
 import Model.Repository.RequestRepository;
@@ -7,11 +8,12 @@ import Model.Repository.UserRepository;
 import Model.Service.UserContext;
 
 import java.io.*;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
 public class AppState implements Serializable {
-    private static final HashMap<String, String> dataPaths = new AppConfig("config.properties").getDataFiles();
+    @ConfigProperty(propertyName = "dataPaths")
+    private static ArrayList<String> dataPaths = new ArrayList<>();
 
     private static void saveItems(String filePath, Object object) {
         try (ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(filePath))) {
@@ -34,18 +36,18 @@ public class AppState implements Serializable {
     }
 
     public static void saveState() {
-        saveItems(dataPaths.get("users"), UserRepository.getInstance());
-        saveItems(dataPaths.get("books"), BookRepository.getInstance());
-        saveItems(dataPaths.get("orders"), OrderRepository.getInstance());
-        saveItems(dataPaths.get("requests"), RequestRepository.getInstance());
-        saveItems(dataPaths.get("userContext"), UserContext.getInstance());
+        saveItems(dataPaths.get(0), UserRepository.getInstance());
+        saveItems(dataPaths.get(1), BookRepository.getInstance());
+        saveItems(dataPaths.get(2), OrderRepository.getInstance());
+        saveItems(dataPaths.get(3), RequestRepository.getInstance());
+        saveItems(dataPaths.get(4), UserContext.getInstance());
     }
 
     public static void loadState() {
-        loadItems(dataPaths.get("users"));
-        loadItems(dataPaths.get("books"));
-        loadItems(dataPaths.get("orders"));
-        loadItems(dataPaths.get("requests"));
-        loadItems(dataPaths.get("userContext"));
+        loadItems(dataPaths.get(0));
+        loadItems(dataPaths.get(1));
+        loadItems(dataPaths.get(2));
+        loadItems(dataPaths.get(3));
+        loadItems(dataPaths.get(4));
     }
 }

@@ -1,5 +1,6 @@
 package Model.Service;
 
+import Model.Annotations.Inject;
 import Model.Entity.Book;
 import Model.Entity.Order;
 
@@ -8,15 +9,13 @@ import java.util.Comparator;
 import java.util.List;
 
 public class StatisticsService {
-    private final RequestService requestService;
-    private final OrderService orderService;
-    private final BookService bookService;
-
-    public StatisticsService(RequestService requestService, OrderService orderService, BookService bookService) {
-        this.requestService = requestService;
-        this.orderService = orderService;
-        this.bookService = bookService;
-    }
+    private static StatisticsService INSTANCE;
+    @Inject
+    private RequestService requestService;
+    @Inject
+    private OrderService orderService;
+    @Inject
+    private BookService bookService;
 
     public List<Order> getCompletedOrdersByPeriod(LocalDate startDate, LocalDate endDate) {
         return orderService.getOrders().stream()
@@ -43,5 +42,12 @@ public class StatisticsService {
                 .toList();
     }
 
+    public static StatisticsService getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new StatisticsService();
+        }
+        return INSTANCE;
+    }
 
+    private StatisticsService() {}
 }

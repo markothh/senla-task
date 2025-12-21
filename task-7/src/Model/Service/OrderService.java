@@ -1,5 +1,6 @@
 package Model.Service;
 
+import Model.Annotations.Inject;
 import Model.Entity.Book;
 import Model.Entity.Order;
 import Model.Entity.User;
@@ -11,12 +12,11 @@ import java.util.*;
 import java.util.logging.Logger;
 
 public class OrderService {
-    private final OrderRepository orderRepository = OrderRepository.getInstance();
-    private final RequestService requestService;
-
-    public OrderService(RequestService requestService) {
-        this.requestService = requestService;
-    }
+    private static OrderService INSTANCE;
+    @Inject
+    private OrderRepository orderRepository;
+    @Inject
+    private RequestService requestService;
 
     public List<Order> getOrders() {
         return orderRepository.getOrders();
@@ -82,4 +82,13 @@ public class OrderService {
     public void importOrders(String filePath) {
         orderRepository.importOrders(filePath);
     }
+
+    public static OrderService getInstance() {
+        if (INSTANCE == null) {
+            INSTANCE = new OrderService();
+        }
+        return INSTANCE;
+    }
+
+    private OrderService() {}
 }

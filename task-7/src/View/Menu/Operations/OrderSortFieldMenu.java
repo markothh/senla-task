@@ -2,6 +2,7 @@ package View.Menu.Operations;
 
 import View.Menu.Menu;
 import View.MenuItem;
+import View.MenuProvider;
 
 public class OrderSortFieldMenu extends Menu {
     public OrderSortFieldMenu(Menu previousMenu) {
@@ -14,9 +15,9 @@ public class OrderSortFieldMenu extends Menu {
 
     private MenuItem[] generateMenuItems() {
         return new MenuItem[] {
-                new MenuItem("Дата исполнения", () -> {}, new OrderSortOrderMenu("completedAt", this)),
-                new MenuItem("Цена", () -> {}, new OrderSortOrderMenu("price", this)),
-                new MenuItem("Статус", () -> {}, new OrderSortOrderMenu("status", this))
+                new MenuItem("Дата исполнения", () -> {}, MenuProvider.create(new OrderSortOrderMenu("completedAt", this))),
+                new MenuItem("Цена", () -> {}, MenuProvider.create(new OrderSortOrderMenu("price", this))),
+                new MenuItem("Статус", () -> {}, MenuProvider.create(new OrderSortOrderMenu("status", this)))
         };
     }
 }
