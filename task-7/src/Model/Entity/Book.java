@@ -2,11 +2,10 @@ package Model.Entity;
 
 import Model.Enum.BookStatus;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 
-public class Book implements Serializable {
-    private int id;
+public class Book {
+    private final int id;
     private final String name;
     private final String description;
     private final String author;

@@ -1,9 +1,12 @@
 package Model.Service;
 
 import Model.Annotations.Inject;
+import Model.Config.DBConnection;
 import Model.Entity.Book;
 import Model.Repository.BookRepository;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.logging.Logger;
@@ -12,9 +15,11 @@ public class BookService {
     private static BookService INSTANCE;
     @Inject
     private BookRepository bookRepository;
+    @Inject
+    private RequestService requestService;
 
     public List<Book> getBooks() {
-        return bookRepository.getBooks();
+        return bookRepository.findAll();
     }
 
     public List<Book> getSortedBooks(String sortBy, boolean isReversed) {
@@ -37,13 +42,13 @@ public class BookService {
             comparator = comparator.reversed();
         }
 
-        return bookRepository.getBooks().stream()
+        return bookRepository.findAll().stream()
                 .sorted(comparator)
                 .toList();
     }
 
     public Book getBookByName(String bookName) {
-        return bookRepository.getBookByName(bookName);
+        return bookRepository.findByName(bookName);
     }
 
     public String getDescriptionByBookName(String bookName) {
@@ -66,9 +71,38 @@ public class BookService {
         return result;
     }
 
-    public void addToStock(String bookName) {
-        getBookByName(bookName).setAvailable();
-        System.out.printf("Книга '%s' добавлена на склад", bookName);
+    public void addToStock(String bookName, boolean isRequestSatisfactionNeeded) {
+        Connection connection = DBConnection.getInstance().getConnection();
+
+        try {
+            connection.setAutoCommit(false);
+
+            getBookByName(bookName).setAvailable();
+            if (isRequestSatisfactionNeeded) {
+                requestService.satisfyAllRequestsByBookId(getBookByName(bookName).getId());
+            }
+            System.out.printf("Книга '%s' добавлена на склад", bookName);
+        }
+        catch (SQLException e) {
+            try {
+                connection.rollback();
+            }
+            catch (SQLException e1){
+                throw new RuntimeException(e1);
+            }
+
+            String errMessage = String.format("Не удалось добавить книгу на склад: %s", e.getMessage());
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(e);
+        }
+        finally {
+            try {
+                connection.setAutoCommit(true);
+            }
+            catch (SQLException e1){
+                throw new RuntimeException(e1);
+            }
+        }
     }
 
     public void removeFromStock(String bookName) {
@@ -81,11 +115,11 @@ public class BookService {
     }
 
     public void exportBooks(String filePath) {
-        bookRepository.exportBooks(filePath);
+        bookRepository.exportToCSV(filePath);
     }
 
     public void importBooks(String filePath) {
-        bookRepository.importBooks(filePath);
+        bookRepository.importFromCSV(filePath);
     }
 
     public static BookService getInstance() {
@@ -95,5 +129,5 @@ public class BookService {
         return INSTANCE;
     }
 
-    private BookService() {};
+    private BookService() {}
 }

@@ -3,7 +3,9 @@ package Model;
 import Model.Annotations.Inject;
 import Model.Config.AppConfig;
 import Model.Config.AppState;
+import Model.Config.DBConnection;
 import Model.Entity.Book;
+import Model.Entity.DTO.UserProfile;
 import Model.Entity.Order;
 import Model.Entity.Request;
 import Model.Entity.User;
@@ -36,6 +38,7 @@ public class BookShop {
     private BookShop() {
         ConfigLoader.configure(new AppState());
         AppState.loadState();
+        ConfigLoader.configure(DBConnection.getInstance());
     }
 
     public static BookShop getInstance() {
@@ -50,13 +53,12 @@ public class BookShop {
         bookService.removeFromStock(bookName);
     }
 
-    public int createOrder(User user, List<String> bookNames) {
+    public void createOrder(UserProfile user, List<String> bookNames) {
         try {
-            return orderService.createOrder(user, bookService.formIdListFromNames(bookNames)).getId();
+            orderService.createOrder(user, bookService.formIdListFromNames(bookNames));
         }
         catch (NoSuchElementException e) {
             System.out.println(e.getMessage());
-            return -1;
         }
     }
 
@@ -69,10 +71,7 @@ public class BookShop {
     }
 
     public void addBookToStock(String bookName) {
-        bookService.addToStock(bookName);
-        if (appConfig.getAutoCompleteRequests()) {
-            requestService.satisfyAllRequestsByBook(bookService.getBookByName(bookName));
-        }
+        bookService.addToStock(bookName, appConfig.getAutoCompleteRequests());
     }
 
     public int createBookRequest(String bookName) {

@@ -1,12 +1,15 @@
 package Model.Service;
 
 import Model.Annotations.Inject;
+import Model.Config.DBConnection;
 import Model.Entity.Book;
+import Model.Entity.DTO.UserProfile;
 import Model.Entity.Order;
-import Model.Entity.User;
 import Model.Enum.OrderStatus;
 import Model.Repository.OrderRepository;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.logging.Logger;
@@ -19,7 +22,7 @@ public class OrderService {
     private RequestService requestService;
 
     public List<Order> getOrders() {
-        return orderRepository.getOrders();
+        return orderRepository.findAll();
     }
 
     public List<Order> getSortedOrders(String sortBy, boolean isReversed) {
@@ -41,7 +44,7 @@ public class OrderService {
             comparator = comparator.reversed();
         }
 
-        return orderRepository.getOrders().stream()
+        return orderRepository.findAll().stream()
                 .sorted(comparator)
                 .toList();
     }
@@ -54,21 +57,44 @@ public class OrderService {
         orderRepository.setOrderStatus(orderId, status);
     }
 
-    public Order createOrder(User user, List<Book> books) {
-        Order order = new Order(user);
-        for (Book book : books) {
-            if (!book.isAvailable()) {
-                System.out.printf("%nКниги '%s' нет на складе. Создается запрос...", book.getName());
-                requestService.createRequest(book);
+    public void createOrder(UserProfile user, List<Book> books) {
+        Connection connection = DBConnection.getInstance().getConnection();
+
+        try {
+            connection.setAutoCommit(false);
+
+            Order order = new Order(user);
+            for (Book book : books) {
+                if (!book.isAvailable()) {
+                    requestService.createRequest(book);
+                }
+
+                order.addBook(book);
             }
 
-            order.addBook(book);
+            orderRepository.save(order);
+            System.out.printf("%nСоздан заказ: %n%s", order);
         }
+        catch (SQLException e) {
+            try {
+                connection.rollback();
+            }
+            catch (SQLException e1){
+                throw new RuntimeException(e1);
+            }
 
-        orderRepository.save(order);
-        System.out.printf("%nСоздан заказ: %n%s", order);
-
-        return order;
+            String errMessage = String.format("Не удалось создать заказ: %s", e.getMessage());
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(e);
+        }
+        finally {
+            try {
+                connection.setAutoCommit(true);
+            }
+            catch (SQLException e1){
+                throw new RuntimeException(e1);
+            }
+        }
     }
 
     public void cancelOrder(int orderId) {
@@ -76,11 +102,11 @@ public class OrderService {
     }
 
     public void exportOrders(String filePath) {
-        orderRepository.exportOrders(filePath);
+        orderRepository.exportToCSV(filePath);
     }
 
     public void importOrders(String filePath) {
-        orderRepository.importOrders(filePath);
+        orderRepository.importFromCSV(filePath);
     }
 
     public static OrderService getInstance() {

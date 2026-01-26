@@ -17,11 +17,13 @@ public class AdminBookMenu extends Menu {
                 new MenuItem("Добавить книгу на склад",
                         () -> {
                             System.out.println("Введите название книги для добавления на склад");
+                            bookShop.SCANNER.nextLine();
                             bookShop.addBookToStock(bookShop.SCANNER.nextLine());
                         },
                         null),
                 new MenuItem("Списать книгу со склада", () -> {
                     System.out.println("Введите название книги для списания книги со склада");
+                    bookShop.SCANNER.nextLine();
                     bookShop.removeBookFromStock(bookShop.SCANNER.nextLine());
                 },
                         null),

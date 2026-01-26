@@ -13,18 +13,18 @@ public class UserService {
     private UserRepository userRepository;
 
     public Optional<User> getUserById(int userId) {
-        return userRepository.getUsers().stream()
+        return userRepository.findAll().stream()
                 .filter(user -> user.getId() == userId)
                 .findFirst();
     }
 
     public List<User> getUsers() {
-        return userRepository.getUsers();
+        return userRepository.findAll();
     }
 
     public void login (String username, String password) {
         try {
-            User user = userRepository.getUserByName(username);
+            User user = userRepository.findByName(username);
             userRepository.authorize(user, password);
 
             UserContext.getInstance().setCurrentUser(user);
@@ -45,7 +45,7 @@ public class UserService {
     }
 
     public void importRequests(String filePath) {
-        userRepository.importToCSV(filePath);
+        userRepository.importFromCSV(filePath);
     }
 
     public static UserService getInstance() {

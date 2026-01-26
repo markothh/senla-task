@@ -31,7 +31,7 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
     public void exportToCSV(String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;createdAt;book;quantity\n");
-            for (Request request : requestRepository.getRequests()) {
+            for (Request request : requestRepository.findAll()) {
                 writer.write(String.format("%s;%s;%s;%s%n",
                         request.getId(),
                         request.getCreatedAt() != null ? request.getCreatedAt() : "",
@@ -73,7 +73,7 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
     }
 
     private Book findBook(int bookId) {
-        return bookRepository.getBookById(bookId);
+        return bookRepository.findById(bookId);
     }
 
     private Request parseRequest(String requestData) {

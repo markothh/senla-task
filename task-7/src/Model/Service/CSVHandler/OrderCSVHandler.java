@@ -1,16 +1,13 @@
 package Model.Service.CSVHandler;
 
 import Model.Entity.Book;
+import Model.Entity.DTO.UserProfile;
 import Model.Entity.Order;
-import Model.Entity.User;
 import Model.Enum.OrderStatus;
 import Model.Repository.BookRepository;
 import Model.Repository.OrderRepository;
 import Model.Repository.UserRepository;
-import Model.Status.CancelledOrderStatus;
-import Model.Status.CompletedOrderStatus;
 import Model.Status.IOrderStatus;
-import Model.Status.NewOrderStatus;
 
 import java.io.*;
 import java.time.LocalDate;
@@ -38,7 +35,7 @@ public class OrderCSVHandler implements ICSVHandler<Order>{
     public void exportToCSV(String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;user;books;created_at;completed_at;status\n");
-            for (Order order : orderRepository.getOrders()) {
+            for (Order order : orderRepository.findAll()) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s%n",
                         order.getId(),
                         order.getUser().getId(),
@@ -83,20 +80,12 @@ public class OrderCSVHandler implements ICSVHandler<Order>{
                 .toList();
     }
 
-    private IOrderStatus convert(OrderStatus status) {
-        return switch (status) {
-            case NEW -> new NewOrderStatus();
-            case CANCELLED -> new CancelledOrderStatus();
-            case COMPLETED -> new CompletedOrderStatus();
-        };
-    }
-
     private List<Book> findBooks(String strBookIds) {
         return Arrays.stream(strBookIds.split(","))
                 .map(Integer::parseInt)
                 .map(id -> {
                     try {
-                        return bookRepository.getBookById(id);
+                        return bookRepository.findById(id);
                     }
                     catch (NoSuchElementException e) {
                         System.out.println(e.getMessage());
@@ -107,8 +96,8 @@ public class OrderCSVHandler implements ICSVHandler<Order>{
                 .toList();
     }
 
-    private User findUser(int userId) {
-        return userRepository.getUserById(userId);
+    private UserProfile findUser(int userId) {
+        return userRepository.findProfileById(userId);
     }
 
     private Order parseOrder(String orderData) {
@@ -120,7 +109,7 @@ public class OrderCSVHandler implements ICSVHandler<Order>{
                     findBooks(args[2]),
                     !args[3].isBlank() ? LocalDate.parse(args[3]) : null,
                     !args[4].isBlank() ? LocalDate.parse(args[4]) : null,
-                    convert(OrderStatus.valueOf(args[5]))
+                    IOrderStatus.from(OrderStatus.valueOf(args[5]))
             );
         }
         catch (NoSuchElementException e){
