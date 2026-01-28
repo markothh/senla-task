@@ -89,13 +89,13 @@ public class Order {
     public void setStatus(OrderStatus status) {
         System.out.printf("%nТекущий статус заказа: %s", this.status);
         switch (status) {
-            case OrderStatus.NEW:
+            case NEW:
                 this.status = this.status.resetToNew(this);
                 break;
-            case OrderStatus.CANCELLED:
+            case CANCELLED:
                 this.status = this.status.cancel(this);
                 break;
-            case OrderStatus.COMPLETED:
+            case COMPLETED:
                 this.status = this.status.complete(this);
                 break;
         }
