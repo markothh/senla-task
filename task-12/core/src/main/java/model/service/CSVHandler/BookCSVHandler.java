@@ -3,6 +3,8 @@ package model.service.CSVHandler;
 import model.entity.Book;
 import model.enums.BookStatus;
 import model.repository.BookRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -12,9 +14,9 @@ import java.io.FileNotFoundException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 public final class BookCSVHandler implements ICSVHandler<Book> {
+    private static final Logger logger = LogManager.getLogger();
     private static BookCSVHandler INSTANCE;
     private final BookRepository bookRepository = BookRepository.getInstance();
 
@@ -46,10 +48,9 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
                 );
             }
 
-            System.out.println("Книги успешно экспортированы в указанный файл.");
-            Logger.getGlobal().info(String.format("Книги были экспортированы в файл: \"%s\"", filePath));
+            logger.info("Книги успешно экспортированы в файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
+            logger.error("Не удалось открыть для записи файл '{}'", filePath);
         }
     }
 
@@ -62,30 +63,40 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                result.add(parseBook(line));
+                try {
+                    result.add(parseBook(line));
+                } catch (IllegalArgumentException e) {
+                    logger.error("Данные книги не добавлены: {}", e.getMessage());
+                }
             }
-            System.out.println("Книги были успешно импортированы из указанного файла");
+            logger.info("Информация о книгах была получена из файла '{}'", filePath);
         } catch (FileNotFoundException e) {
-            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
+            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
+            logger.error("Ошибка чтения из файла '{}'", filePath);
         }
-        Logger.getGlobal().info(String.format("Книги были импортированы из файла: \"%s\"", filePath));
+
         return result;
     }
 
-    private Book parseBook(String bookData) {
+    private Book parseBook(String bookData) throws IllegalArgumentException {
         String[] args = bookData.split(";");
-        return new Book(
-                Integer.parseInt(args[0]),
-                args[1],
-                args[2],
-                args[3],
-                args[4],
-                Double.parseDouble(args[5]),
-                BookStatus.valueOf(args[6]),
-                Integer.parseInt(args[7]),
-                args.length > 8 && !args[8].isBlank() ? LocalDate.parse(args[8]) : null
-        );
+        try {
+            return new Book(
+                    Integer.parseInt(args[0]),
+                    args[1],
+                    args[2],
+                    args[3],
+                    args[4],
+                    Double.parseDouble(args[5]),
+                    BookStatus.valueOf(args[6]),
+                    Integer.parseInt(args[7]),
+                    args.length > 8 && !args[8].isBlank() ? LocalDate.parse(args[8]) : null
+            );
+        } catch (Exception e) {
+            logger.debug(bookData);
+            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s", e.getMessage()));
+        }
+
     }
 }

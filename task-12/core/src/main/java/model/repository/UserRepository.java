@@ -5,14 +5,17 @@ import model.entity.DTO.UserProfile;
 import model.entity.User;
 import model.service.CSVHandler.CSVHandlers;
 import model.utils.EntityParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 public class UserRepository implements Serializable, IRepository<User> {
+    private static final Logger logger = LogManager.getLogger();
     private static UserRepository INSTANCE;
 
     public static UserRepository getInstance() {
@@ -33,17 +36,22 @@ public class UserRepository implements Serializable, IRepository<User> {
                     "role as user_role " +
                     "from users")) {
                 while (rs.next()) {
-                    users.add(EntityParser.parseUser(rs));
+                    try {
+                        users.add(EntityParser.parseUser(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
+                    }
                 }
             }
+            logger.info("Список пользователей успешно получен.");
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить список пользователей: {}", e.getMessage());
         }
         return users;
     }
 
     @Override
-    public User findById(int userId) {
+    public Optional<User> findById(int userId) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +
                                 "id as user_id, " +
@@ -55,37 +63,49 @@ public class UserRepository implements Serializable, IRepository<User> {
             stmt.setInt(1, userId);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return EntityParser.parseUser(rs);
+                    logger.info("Пользователь с id = {} получен", userId);
+                    try {
+                        return Optional.of(EntityParser.parseUser(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные пользователя с id=%s", userId);
-                    Logger.getGlobal().severe(errMessage);
-                    throw new RuntimeException(errMessage);
+                    logger.error("Не удалось получить данные пользователя с id = {}", userId);
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные пользователя с id = {}: {}", userId, e.getMessage());
+            return Optional.empty();
         }
     }
 
-    public UserProfile findProfileById(int userId) {
+    public Optional<UserProfile> findProfileById(int userId) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +
                         "id as user_id, " +
-                        "name as user_name, " +
+                        "name as user_name " +
                         "from users " +
                         "where id = ?")) {
             stmt.setInt(1, userId);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return EntityParser.parseUserProfile(rs);
+                    logger.info("Пользователь с id = {} успешно получен", userId);
+                    try {
+                        return Optional.of(EntityParser.parseUserProfile(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные пользователя с id=%s", userId);
-                    Logger.getGlobal().severe(errMessage);
-                    throw new RuntimeException(errMessage);
+                    logger.error("Не удалось получить данные пользователя с id = {}", userId);
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные пользователя с id = {}: {}", userId, e.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -102,14 +122,13 @@ public class UserRepository implements Serializable, IRepository<User> {
             stmt.setString(3, user.getRole().toString());
 
             stmt.execute();
+            logger.info("Пользователь с логином '{}' успешно добавлен", user.getName());
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось добавить пользователя с логином '%s'", user.getName());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось добавить пользователя с логином '{}': {}", user.getName(), e.getMessage());
         }
     }
 
-    public User findByName(String userName) {
+    public Optional<User> findByName(String userName) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +
                         "id as user_id, " +
@@ -121,22 +140,26 @@ public class UserRepository implements Serializable, IRepository<User> {
             stmt.setString(1, userName);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return EntityParser.parseUser(rs);
+                    logger.info("Пользователь с name = {} успешно получен", userName);
+                    try {
+                        return Optional.of(EntityParser.parseUser(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные пользователя с name=%s", userName);
-                    Logger.getGlobal().severe(errMessage);
-                    throw new RuntimeException(errMessage);
+                    logger.error("Не удалось получить данные пользователя с name = {}", userName);
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные пользователя с name = {}: {}", userName, e.getMessage());
+            return Optional.empty();
         }
     }
 
-    public void authorize(User user, String password) {
-        if (!user.getPassword().equals(password)) {
-            throw new IllegalArgumentException("Вход не выполнен. Неверный пароль.");
-        }
+    public boolean authorize(User user, String password) {
+        return !user.getPassword().equals(password);
     }
 
     public void exportToCSV(String filePath) {
@@ -166,10 +189,9 @@ public class UserRepository implements Serializable, IRepository<User> {
             }
 
             stmt.executeBatch();
+            logger.info("Пользователи успешно импортированы из файла '{}'", filePath);
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось импортировать пользователей: %s", e.getMessage());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось импортировать пользователей из файла '{}'. Подробнее: {}", filePath, e.getMessage());
         }
     }
 }

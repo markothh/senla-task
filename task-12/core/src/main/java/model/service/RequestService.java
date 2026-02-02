@@ -4,17 +4,22 @@ import model.annotations.Inject;
 import model.entity.Book;
 import model.entity.Request;
 import model.repository.RequestRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 public final class RequestService {
+    private static final Logger logger = LogManager.getLogger();
     private static RequestService INSTANCE;
     @Inject
     private RequestRepository requestRepository;
+    @Inject
+    private BookService bookService;
 
     public List<Request> getRequests() {
         return requestRepository.findAll();
@@ -28,10 +33,9 @@ public final class RequestService {
 
         Comparator<Request> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            String errMessage = "Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: quantity, bookName";
-            Logger.getGlobal().severe(errMessage);
-            throw new IllegalArgumentException(errMessage);
+            logger.error("Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: quantity, bookName");
+            return List.of();
         }
 
         if (isReversed) {
@@ -43,7 +47,7 @@ public final class RequestService {
                 .toList();
     }
 
-    public Request createRequest(Book book) {
+    public void createRequestIfNotAvailable(Book book) {
         Optional<Request> optRequest = requestRepository.findByBookId(book.getId());
         Request request;
         if (optRequest.isPresent()) {
@@ -53,17 +57,23 @@ public final class RequestService {
             request = new Request(book);
             requestRepository.save(request);
         }
+    }
 
-        System.out.printf("%nСоздан запрос: %s", request);
-        System.out.printf("%nАктивные запросы:%n%s", requestRepository.findAll());
-        return request;
+    public void createRequest(String bookName) {
+        if (bookService.isBookAvailable(bookName)) {
+            logger.error("Невозможно создать заказ на книгу, которая есть в наличии.");
+        }
+
+        try {
+            Book bookToRequest = bookService.getBookByName(bookName);
+            createRequestIfNotAvailable(bookToRequest);
+        } catch (NoSuchElementException e) {
+            logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+        }
     }
 
     public void satisfyAllRequestsByBookId(int bookId) {
         requestRepository.deleteByBookId(bookId);
-
-        System.out.printf("%nУдалены запросы на книгу с id: %d", bookId);
-        System.out.printf("%nАктивные запросы:%n%s", requestRepository.findAll());
     }
 
     public void exportRequests(String filePath) {

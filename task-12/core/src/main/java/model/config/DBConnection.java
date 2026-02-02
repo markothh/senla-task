@@ -1,13 +1,15 @@
 package model.config;
 
 import model.annotations.ConfigProperty;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.logging.Logger;
 
 public final class DBConnection {
+    private static final Logger logger = LogManager.getLogger();
     private static DBConnection INSTANCE;
 
     @ConfigProperty(propertyName = "dbUrl")
@@ -33,9 +35,8 @@ public final class DBConnection {
             try {
                 this.connection = DriverManager.getConnection(URL, USER, PASSWORD);
             } catch (SQLException e) {
-                String errMessage = "Не удалось установить соединение с БД";
-                Logger.getGlobal().severe(errMessage);
-                throw new RuntimeException(errMessage);
+                logger.fatal("Не удалось установить соединение с БД");
+                throw new RuntimeException();
             }
         }
         return connection;

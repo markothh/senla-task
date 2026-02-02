@@ -4,6 +4,8 @@ import model.entity.Book;
 import model.entity.Request;
 import model.repository.BookRepository;
 import model.repository.RequestRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.FileWriter;
 import java.io.FileReader;
@@ -11,10 +13,12 @@ import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.time.LocalDate;
-import java.util.*;
-import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 public final class RequestCSVHandler implements ICSVHandler<Request> {
+    private static final Logger logger = LogManager.getLogger();
     private static RequestCSVHandler INSTANCE;
     private final BookRepository bookRepository = BookRepository.getInstance();
     private final RequestRepository requestRepository = RequestRepository.getInstance();
@@ -41,10 +45,9 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
                 );
             }
 
-            System.out.println("Запросы успешно экспортированы в указанный файл.");
-            Logger.getGlobal().info(String.format("Запросы были экспортированы в файл: \"%s\"", filePath));
+            logger.info("Запросы успешно экспортированы в файл: \"{}\"", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().warning("Не удалось открыть для записи указанный файл");
+            logger.error("Не удалось открыть для записи файл '{}'", filePath);
         }
     }
 
@@ -57,42 +60,42 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                Request request = parseRequest(line).orElse(null);
-                if (request != null) {
-                    result.add(request);
-                } else {
-                    Logger.getGlobal().warning("Запрос не был импортирован: ошибка обработки");
+                try {
+                    result.add(parseRequest(line));
+                } catch (IllegalArgumentException e) {
+                    logger.error("Данные запроса не добавлены: {}", e.getMessage());
                 }
             }
-
-            Logger.getGlobal().info(String.format("Запросы были импортированы из файла: \"%s\"", filePath));
+            logger.info("Информация о запросах была получена из файла '{}'", filePath);
         } catch (FileNotFoundException e) {
-            Logger.getGlobal().warning("Не удалось открыть для чтения указанный файл.");
+            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().warning("Ошибка чтения из указанного файла.");
+            logger.error("Ошибка чтения из файла '{}'", filePath);
         }
-        return result
-                .stream()
-                .filter(Objects::nonNull)
-                .toList();
+
+        return result;
     }
 
-    private Optional<Book> findBook(int bookId) {
-        return bookRepository.findById(bookId);
+    private Book findBook(int bookId) {
+        return bookRepository.findById(bookId)
+                .orElseThrow(() ->
+                        new NoSuchElementException(String.format("Книга с id = %d не найдена", bookId)));
     }
 
-    private Optional<Request> parseRequest(String requestData) {
+    private Request parseRequest(String requestData) {
         String[] args = requestData.split(";");
         try {
-            return Optional.of(new Request(
+             return new Request(
                     Integer.parseInt(args[0]),
                     !args[1].isBlank() ? LocalDate.parse(args[1]) : null,
-                    findBook(Integer.parseInt(args[2])).orElseThrow(NoSuchElementException::new),
-                    Integer.parseInt(args[3]))
-            );
+                    findBook(Integer.parseInt(args[2])),
+                    Integer.parseInt(args[3]));
         } catch (NoSuchElementException e) {
-            System.out.printf("Запрос №%s: Не удалось установить соответствия между сущностями.", args[0]);
-            return Optional.empty();
+            logger.debug(requestData);
+            throw new IllegalArgumentException(String.format("Не удалось установить соответствия между сущностями: %s", e.getMessage()));
+        } catch (Exception e) {
+            logger.debug(requestData);
+            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность запроса из данных файла. Неверный формат данных: %s", e.getMessage()));
         }
     }
 }

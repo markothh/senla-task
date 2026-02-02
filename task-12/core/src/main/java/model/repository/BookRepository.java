@@ -4,6 +4,8 @@ import model.config.DBConnection;
 import model.entity.Book;
 import model.service.CSVHandler.CSVHandlers;
 import model.utils.EntityParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Serializable;
 import java.sql.Date;
@@ -12,9 +14,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 public final class BookRepository implements Serializable, IRepository<Book> {
+    private static final Logger logger = LogManager.getLogger();
     private static BookRepository INSTANCE;
 
     public static BookRepository getInstance() {
@@ -40,11 +42,16 @@ public final class BookRepository implements Serializable, IRepository<Book> {
                     "stock_date as book_stock_date " +
                     "from books")) {
                 while (rs.next()) {
-                    books.add(EntityParser.parseBook(rs));
+                    try {
+                        books.add(EntityParser.parseBook(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
+                    }
                 }
             }
+            logger.info("Список книг успешно получен.");
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить список книг: {}", e.getMessage());
         }
         return books;
     }
@@ -67,15 +74,21 @@ public final class BookRepository implements Serializable, IRepository<Book> {
             stmt.setInt(1, bookId);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(EntityParser.parseBook(rs));
+                    logger.info("Книга с id = {} получена", bookId);
+                    try {
+                        return Optional.of(EntityParser.parseBook(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные книги с id=%s", bookId);
-                    Logger.getGlobal().warning(errMessage);
+                    logger.error("Не удалось получить данные книги с id = {}", bookId);
                     return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные книги с id = {}: {}", bookId, e.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -105,14 +118,13 @@ public final class BookRepository implements Serializable, IRepository<Book> {
             }
 
             stmt.execute();
+            logger.info("Книга '{}' успешно добавлена", book.getName());
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось добавить книгу '%s'", book.getName());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось добавить книгу '{}': {}", book.getName(), e.getMessage());
         }
     }
 
-    public Book findByName(String bookName) {
+    public Optional<Book> findByName(String bookName) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +
                                 "id as book_id, " +
@@ -129,22 +141,27 @@ public final class BookRepository implements Serializable, IRepository<Book> {
             stmt.setString(1, bookName);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return EntityParser.parseBook(rs);
+                    logger.info("Книга с name = {} успешно получена", bookName);
+                    try {
+                        return Optional.of(EntityParser.parseBook(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные книги с name=%s", bookName);
-                    Logger.getGlobal().severe(errMessage);
-                    throw new RuntimeException(errMessage);
+                    logger.error("Не удалось получить данные книги с name = {}", bookName);
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            String errMessage = "Не удалось установить соединение с БД";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось получить данные книги с name = {}: {}", bookName, e.getMessage());
+            return Optional.empty();
         }
     }
 
     public void exportToCSV(String filePath) {
         CSVHandlers.books().exportToCSV(filePath);
+
     }
 
     public void importFromCSV(String filePath) {
@@ -189,10 +206,9 @@ public final class BookRepository implements Serializable, IRepository<Book> {
             }
 
             stmt.executeBatch();
+            logger.info("Книги успешно импортированы из файла '{}'", filePath);
         } catch (SQLException e) {
-            String errMessage = "Не удалось импортировать книги";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось импортировать книги из файла '{}'. Подробнее: {}", filePath, e.getMessage());
         }
     }
 

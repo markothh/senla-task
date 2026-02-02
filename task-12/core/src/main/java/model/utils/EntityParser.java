@@ -13,10 +13,10 @@ import model.status.IOrderStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.logging.Logger;
 
 public class EntityParser {
-    public static Order parseOrder(ResultSet rs) {
+
+    public static Order parseOrder(ResultSet rs) throws IllegalArgumentException {
         try {
             UserProfile user = parseUserProfile(rs);
 
@@ -29,13 +29,11 @@ public class EntityParser {
                     IOrderStatus.from(OrderStatus.valueOf(rs.getString("order_status")))
             );
         } catch (SQLException e) {
-            String errMessage = "Не удалось извлечь данные заказа.";
-            Logger.getGlobal().warning(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new IllegalArgumentException("Не удалось извлечь данные заказа. Неверный формат данных");
         }
     }
 
-    public static Book parseBook(ResultSet rs) {
+    public static Book parseBook(ResultSet rs) throws IllegalArgumentException {
         try {
             return new Book(
                     rs.getInt("book_id"),
@@ -49,13 +47,11 @@ public class EntityParser {
                     rs.getDate("book_stock_date") != null ? rs.getDate("book_stock_date").toLocalDate() : null
             );
         } catch (SQLException e) {
-            String errMessage = "Не удалось извлечь данные книги.";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new IllegalArgumentException("Не удалось извлечь данные книги. Неверный формат данных");
         }
     }
 
-    public static Request parseRequest(ResultSet rs) {
+    public static Request parseRequest(ResultSet rs) throws IllegalArgumentException {
         try {
             return new Request(
                     rs.getInt("request_id"),
@@ -64,13 +60,11 @@ public class EntityParser {
                     rs.getInt("request_quantity")
             );
         } catch (SQLException e) {
-            String errMessage = "Не удалось извлечь данные запроса.";
-            Logger.getGlobal().warning(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new IllegalArgumentException("Не удалось извлечь данные запроса. Неверный формат данных");
         }
     }
 
-    public static User parseUser(ResultSet rs) {
+    public static User parseUser(ResultSet rs) throws IllegalArgumentException {
         try {
             return new User(
                     rs.getInt("user_id"),
@@ -79,22 +73,18 @@ public class EntityParser {
                     UserRole.valueOf(rs.getString("user_role"))
             );
         } catch (SQLException e) {
-            String errMessage = "Не удалось извлечь данные пользователя.";
-            Logger.getGlobal().warning(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new IllegalArgumentException("Не удалось извлечь данные пользователя. Неверный формат данных");
         }
     }
 
-    public static UserProfile parseUserProfile(ResultSet rs) {
+    public static UserProfile parseUserProfile(ResultSet rs) throws IllegalArgumentException {
         try {
             return new UserProfile(
                     rs.getInt("user_id"),
                     rs.getString("user_name")
             );
         } catch (SQLException e) {
-            String errMessage = "Не удалось извлечь данные пользователя.";
-            Logger.getGlobal().warning(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new IllegalArgumentException("Не удалось извлечь данные пользователя. Неверный формат данных");
         }
     }
 }

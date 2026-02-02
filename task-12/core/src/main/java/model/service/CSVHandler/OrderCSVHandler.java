@@ -8,6 +8,8 @@ import model.repository.BookRepository;
 import model.repository.OrderRepository;
 import model.repository.UserRepository;
 import model.status.IOrderStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -18,12 +20,13 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.NoSuchElementException;
-import java.util.logging.Logger;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public final class OrderCSVHandler implements ICSVHandler<Order> {
+    private static final Logger logger = LogManager.getLogger();
     private static OrderCSVHandler INSTANCE;
 
     private final BookRepository bookRepository = BookRepository.getInstance();
@@ -57,9 +60,9 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
                 );
             }
 
-            Logger.getGlobal().info(String.format("Книги были экспортированы в файл: \"%s\"", filePath));
+            logger.info("Заказы успешно экспортированы в файл: \"{}\"", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
+            logger.error("Не удалось открыть для записи файл '{}'", filePath);
         }
     }
 
@@ -72,14 +75,17 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                result.add(parseOrder(line));
+                try {
+                    result.add(parseOrder(line));
+                } catch (IllegalArgumentException e) {
+                    logger.error("Данные заказа не добавлены: {}", e.getMessage());
+                }
             }
-
-            Logger.getGlobal().info(String.format("Заказы были импортированы из файла: \"%s\"", filePath));
+            logger.info("Информация о заказах была получена из файла '{}'", filePath);
         } catch (FileNotFoundException e) {
-            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
+            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
+            logger.error("Ошибка чтения из файла '{}'.", filePath);
         }
         return result
                 .stream()
@@ -90,23 +96,19 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
     private List<Book> findBooks(String strBookIds) {
         return Arrays.stream(strBookIds.split(","))
                 .map(Integer::parseInt)
-                .map(id -> {
-                    try {
-                        return bookRepository.findById(id);
-                    } catch (NoSuchElementException e) {
-                        System.out.println(e.getMessage());
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
+                .map(bookRepository::findById)
+                .flatMap(Optional::stream)
                 .toList();
     }
 
+
     private UserProfile findUser(int userId) {
-        return userRepository.findProfileById(userId);
+        return userRepository.findProfileById(userId)
+                .orElseThrow(() ->
+                        new NoSuchElementException(String.format("Пользователь с id = %d не найден", userId)));
     }
 
-    private Order parseOrder(String orderData) {
+    private Order parseOrder(String orderData) throws IllegalArgumentException {
         String[] args = orderData.split(";");
         try {
             return new Order(
@@ -118,8 +120,11 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
                     IOrderStatus.from(OrderStatus.valueOf(args[5]))
             );
         } catch (NoSuchElementException e) {
-            System.out.printf("Не удалось установить соответствия между сущностями. Заказ №%s не был импортирован.", args[0]);
-            return null;
+            logger.debug(orderData);
+            throw new IllegalArgumentException(String.format("Не удалось установить соответствия между сущностями: %s", e.getMessage()));
+        } catch (Exception e) {
+            logger.debug(orderData);
+            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s", e.getMessage()));
         }
     }
 }

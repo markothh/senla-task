@@ -3,12 +3,15 @@ package model.service;
 import model.annotations.Inject;
 import model.entity.Book;
 import model.entity.Order;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
 public final class StatisticsService {
+    private static final Logger logger = LogManager.getLogger();
     private static StatisticsService INSTANCE;
     @Inject
     private RequestService requestService;

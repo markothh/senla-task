@@ -4,6 +4,8 @@ import model.config.DBConnection;
 import model.entity.Request;
 import model.service.CSVHandler.CSVHandlers;
 import model.utils.EntityParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Serializable;
 import java.sql.Date;
@@ -12,9 +14,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 public class RequestRepository implements Serializable, IRepository<Request> {
+    private static final Logger logger = LogManager.getLogger();
     private static RequestRepository INSTANCE;
 
     public static RequestRepository getInstance() {
@@ -44,15 +46,21 @@ public class RequestRepository implements Serializable, IRepository<Request> {
             stmt.setInt(1, bookId);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(EntityParser.parseRequest(rs));
+                    logger.info("Успешно получены запросы на книгу с id = {}", bookId);
+                    try {
+                        return Optional.of(EntityParser.parseRequest(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Запросы на книгу с id = %d не найдены", bookId);
-                    Logger.getGlobal().info(errMessage);
+                    logger.error("Запросы на книгу с id = {} не найдены", bookId);
                     return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Ошибка запроса к БД: {}", e.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -76,18 +84,22 @@ public class RequestRepository implements Serializable, IRepository<Request> {
                     "from requests r " +
                     "join books b on b.id = r.book_id ")) {
                 while (rs.next()) {
-                    requests.add(EntityParser.parseRequest(rs));
+                    try {
+                        requests.add(EntityParser.parseRequest(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
+                    }
                 }
+                logger.info("Список запросов успешно получен");
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить список пользователей: {}", e.getMessage());
         }
-
         return requests;
     }
 
     @Override
-    public Request findById(int requestId) {
+    public Optional<Request> findById(int requestId) {
         try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
                 "r.id as request_id, " +
                 "r.created_at as request_created_at, " +
@@ -107,15 +119,21 @@ public class RequestRepository implements Serializable, IRepository<Request> {
             stmt.setInt(1, requestId);
             try (var rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return EntityParser.parseRequest(rs);
+                    logger.info("Успешно получены данные запроса с id = {}", requestId);
+                    try {
+                        return Optional.of(EntityParser.parseRequest(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
+                        return Optional.empty();
+                    }
                 } else {
-                    String errMessage = String.format("Не удалось получить данные запроса с id = %d", requestId);
-                    Logger.getGlobal().severe(errMessage);
-                    throw new RuntimeException(errMessage);
+                    logger.error("Не удалось получить данные запроса с id = {}", requestId);
+                    return Optional.empty();
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные запроса с id = {}: {}", requestId, e.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -126,10 +144,9 @@ public class RequestRepository implements Serializable, IRepository<Request> {
             stmt.setInt(1, bookId);
 
             stmt.execute();
+            logger.info("Запрос на книгу с id = {} успешно удален", bookId);
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось удалить запросы на книгу с id = %d", bookId);
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось удалить запросы на книгу с id = {}", bookId);
         }
     }
 
@@ -149,10 +166,9 @@ public class RequestRepository implements Serializable, IRepository<Request> {
             stmt.setInt(3, request.getQuantity());
 
             stmt.execute();
+            logger.info("Запрос на книгу '{}' успешно добавлен", request.getBook().getName());
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось добавить запрос на книгу '%s'", request.getBook().getName());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось добавить запрос на книгу '{}': {}", request.getBook().getName(), e.getMessage());
         }
     }
 
@@ -164,15 +180,15 @@ public class RequestRepository implements Serializable, IRepository<Request> {
             stmt.setInt(1, requestId);
 
             stmt.execute();
+            logger.info("Количество запрашиваемых книг в запросе с id = {} успешно увеличено", requestId);
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось увеличить количество запрашиваемых книг в запросе с id = %d", requestId);
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: {}", requestId, e.getMessage());
         }
     }
 
     public void exportToCSV(String filePath) {
         CSVHandlers.requests().exportToCSV(filePath);
+        logger.info("Запросы успешно экспортированы в файл '{}'", filePath);
     }
 
     public void importFromCSV(String filePath) {
@@ -200,11 +216,9 @@ public class RequestRepository implements Serializable, IRepository<Request> {
                 stmt.addBatch();
             }
 
-            stmt.executeBatch();
+            stmt.executeBatch();logger.info("Запросы успешно импортированы из файла '{}'", filePath);
         } catch (SQLException e) {
-            String errMessage = "Не удалось импортировать заявки";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.error("Не удалось импортировать запросы из файла '{}': {}", filePath, e.getMessage());
         }
     }
 }

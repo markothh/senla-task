@@ -6,6 +6,8 @@ import model.entity.Order;
 import model.enums.OrderStatus;
 import model.service.CSVHandler.CSVHandlers;
 import model.utils.EntityParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Serializable;
 import java.sql.Date;
@@ -16,9 +18,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 public final class OrderRepository implements Serializable, IRepository<Order> {
+    private static final Logger logger = LogManager.getLogger();
     private static OrderRepository INSTANCE;
 
     private OrderRepository() { }
@@ -32,9 +36,14 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
 
     @Override
     public void save(Order order) {
-        int orderId = saveOrderData(order);
-        for (Book book : order.getBooks()) {
-            saveOrderBook(orderId, book.getId());
+        try {
+            int orderId = saveOrderData(order);
+            for (Book book : order.getBooks()) {
+                saveOrderBook(orderId, book.getId());
+            }
+            logger.info("Заказ успешно добавлен. Ему присвовен номер {}", orderId);
+        } catch (SQLException e) {
+            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
         }
     }
 
@@ -63,24 +72,29 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
                     "join order_book ob on ob.order_id = o.id " +
                     "join books b on b.id = ob.book_id ")) {
                 while (rs.next()) {
-                    int orderId = rs.getInt("order_id");
-                    Order order = ordersData.computeIfAbsent(
-                            orderId,
-                            id -> EntityParser.parseOrder(rs)
-                    );
+                    try {
+                        int orderId = rs.getInt("order_id");
+                        Order order = ordersData.computeIfAbsent(
+                                orderId,
+                                id -> EntityParser.parseOrder(rs)
+                        );
 
-                    order.getBooks().add(EntityParser.parseBook(rs));
+                        order.getBooks().add(EntityParser.parseBook(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные заказа не удалось извлечь из БД: {}", e.getMessage());
+                    }
+
                 }
+                logger.info("Список заказов успешно получен");
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить список заказов: {}", e.getMessage());
         }
-
         return new ArrayList<>(ordersData.values());
     }
 
     @Override
-    public Order findById(int orderId) {
+    public Optional<Order> findById(int orderId) {
         try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
                 "o.id as order_id, " +
                 "o.status as order_status, " +
@@ -106,20 +120,86 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
             try (var rs = stmt.executeQuery()) {
                 Order order = null;
                 while (rs.next()) {
-                    if (order == null) {
-                        order = EntityParser.parseOrder(rs);
+                    try {
+                        if (order == null) {
+                            order = EntityParser.parseOrder(rs);
+                        }
+                        order.getBooks().add(EntityParser.parseBook(rs));
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Данные заказа не удалось извлечь из БД: {}", e.getMessage());
                     }
-                    order.getBooks().add(EntityParser.parseBook(rs));
                 }
 
-                return order;
+                if (order != null) {
+                    logger.info("Успешно получены данные заказа с id = {}", orderId);
+                    return Optional.of(order);
+                } else {
+                    logger.error("Не удалось получить данные заказа с id = {}", orderId);
+                    return Optional.empty();
+                }
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось получить данные заказа с id = {}: {}", orderId, e.getMessage());
+            return Optional.empty();
         }
     }
 
-    public void saveOrderBook(int orderId, int bookId) {
+    public String getOrderInfo(int orderId) {
+        return findById(orderId)
+                .map(Order::getInfo)
+                .orElse("");
+    }
+
+    public void setOrderStatus (int orderId, OrderStatus status) throws IllegalStateException {
+        findById(orderId)
+                .orElseThrow(() ->
+                        new NoSuchElementException(String.format("Заказ с номером %d не найден", orderId)))
+                .setStatus(status);
+    }
+
+    public void exportToCSV(String filePath) {
+        CSVHandlers.orders().exportToCSV(filePath);
+    }
+
+    public void importFromCSV(String filePath) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("insert into orders (" +
+                        "id, " +
+                        "user_id, " +
+                        "created_at, " +
+                        "completed_at, " +
+                        "status)" +
+                        "values (?, ?, ?, ?, ?) " +
+                        "on conflict (id) " +
+                        "do update set " +
+                        "user_id = EXCLUDED.user_id, " +
+                        "created_at = EXCLUDED.created_at, " +
+                        "completed_at = EXCLUDED.completed_at, " +
+                        "status = EXCLUDED.status")) {
+            for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
+                stmt.setInt(1, order.getId());
+                stmt.setInt(2, order.getUser().getId());
+                LocalDate createdAt = order.getCreatedAt();
+                if (createdAt != null) {
+                    stmt.setDate(3, Date.valueOf(createdAt));
+                }
+                LocalDate completedAt = order.getCompletedAt();
+                if (createdAt != null) {
+                    stmt.setDate(4, Date.valueOf(createdAt));
+                }
+                stmt.setString(5, order.getStatus());
+
+                stmt.addBatch();
+            }
+
+            stmt.executeBatch();
+            logger.info("Заказы успешно импортированы из файла '{}'", filePath);
+        } catch (SQLException e) {
+            logger.error("Не удалось импортировать заказы из файла '{}'. Подробнее: {}", filePath, e.getMessage());
+        }
+    }
+
+    private void saveOrderBook(int orderId, int bookId) throws SQLException {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("insert into order_book (" +
                         "order_id, " +
@@ -134,13 +214,11 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
 
             stmt.execute();
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось добавить книги из заказа с id = %d: %s", orderId, e.getMessage());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new SQLException(String.format("Не удалось добавить книги из заказа с id = %d: %s}", orderId, e.getMessage()), e);
         }
     }
 
-    public int saveOrderData(Order order) {
+    private int saveOrderData(Order order) throws SQLException {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("insert into orders (" +
                         "user_id, " +
@@ -164,60 +242,7 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
             rs.next();
             return rs.getInt("id");
         } catch (SQLException e) {
-            String errMessage = String.format("Не удалось добавить заказ: %s", e.getMessage());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
-        }
-    }
-
-    public String getOrderInfo(int orderId) {
-        return findById(orderId).getInfo();
-    }
-
-    public void setOrderStatus(int orderId, OrderStatus status) {
-        findById(orderId).setStatus(status);
-    }
-
-    public void exportToCSV(String filePath) {
-        CSVHandlers.orders().exportToCSV(filePath);
-    }
-
-    public void importFromCSV(String filePath) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into orders (" +
-                        "id, " +
-                        "user_id, " +
-                        "created_at, " +
-                        "completed_at, " +
-                        "status)" +
-                        "values (?, ?, ?, ?, ?) " +
-                        "on conflict (id) " +
-                        "do update set " +
-                        "user_id = EXCLUDED.user_id, " +
-                        "created_at = EXCLUDED.created_at, " +
-                        "completed_at = EXCLUDED.completed_at" +
-                        "status = EXCLUDED.status")) {
-            for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
-                stmt.setInt(1, order.getId());
-                stmt.setInt(2, order.getUser().getId());
-                LocalDate createdAt = order.getCreatedAt();
-                if (createdAt != null) {
-                    stmt.setDate(3, Date.valueOf(createdAt));
-                }
-                LocalDate completedAt = order.getCompletedAt();
-                if (createdAt != null) {
-                    stmt.setDate(4, Date.valueOf(createdAt));
-                }
-                stmt.setString(5, order.getStatus());
-
-                stmt.addBatch();
-            }
-
-            stmt.executeBatch();
-        } catch (SQLException e) {
-            String errMessage = "Не удалось импортировать заказы";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            throw new SQLException(String.format("Не удалось добавить заказ: %s", e.getMessage()), e);
         }
     }
 }

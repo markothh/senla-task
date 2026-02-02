@@ -3,6 +3,8 @@ package model.service.CSVHandler;
 import model.entity.User;
 import model.enums.UserRole;
 import model.repository.UserRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -11,9 +13,9 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 public final class UserCSVHandler implements ICSVHandler<User> {
+    private static final Logger logger = LogManager.getLogger();
     private static UserCSVHandler INSTANCE;
     private final UserRepository userRepository = UserRepository.getInstance();
 
@@ -39,9 +41,9 @@ public final class UserCSVHandler implements ICSVHandler<User> {
                 );
             }
 
-            Logger.getGlobal().info(String.format("Пользователи были экспортированы в файл: \"%s\"", filePath));
+            logger.info("Пользователи успешно экспортированы в файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Не удалось открыть для записи указанный файл");
+            logger.error("Не удалось открыть для записи файл '{}'", filePath);
         }
     }
 
@@ -54,25 +56,34 @@ public final class UserCSVHandler implements ICSVHandler<User> {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                result.add(parseUser(line));
+                try {
+                    result.add(parseUser(line));
+                } catch (IllegalArgumentException e) {
+                    logger.error("Данные пользователя не добавлены: {}", e.getMessage());
+                }
             }
-
-            Logger.getGlobal().info(String.format("Пользователи были импортированы из файла: \"%s\"", filePath));
+            logger.info("Информация о пользователях была получена из файла '{}'", filePath);
         } catch (FileNotFoundException e) {
-            Logger.getGlobal().severe("Не удалось открыть для чтения указанный файл.");
+            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
         } catch (IOException e) {
-            Logger.getGlobal().severe("Ошибка чтения из указанного файла.");
+            logger.error("Ошибка чтения из файла '{}'", filePath);
         }
+
         return result;
     }
 
-    private User parseUser(String userData) {
+    private User parseUser(String userData) throws IllegalArgumentException {
         String[] args = userData.split(";");
-        return new User(
-                Integer.parseInt(args[0]),
-                args[1],
-                args[2],
-                UserRole.valueOf(args[3])
-        );
+        try {
+            return new User(
+                    Integer.parseInt(args[0]),
+                    args[1],
+                    args[2],
+                    UserRole.valueOf(args[3])
+            );
+        } catch (Exception e) {
+            logger.debug(userData);
+            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность пользователя из данных файла. Неверный формат данных: %s", e.getMessage()));
+        }
     }
 }

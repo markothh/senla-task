@@ -2,15 +2,17 @@ package model.utils;
 
 import model.annotations.ConfigProperty;
 import model.annotations.Inject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public class Injector {
+    private static final Logger logger = LogManager.getLogger();
     private static final Set<Object> initialized = new HashSet<>();
 
     public static void inject(Object target) {
@@ -53,9 +55,8 @@ public class Injector {
             Method getInstanceMethod = c.getDeclaredMethod("getInstance");
             return getInstanceMethod.invoke(null);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            String errMessage = String.format("Ошибка внедрения зависимости. Не удалось получить экземпляр %s.", c.getSimpleName());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.fatal("Ошибка внедрения зависимости. Не удалось получить экземпляр {}.", c.getSimpleName());
+            throw new RuntimeException();
         }
     }
 

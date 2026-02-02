@@ -4,6 +4,8 @@ import model.annotations.Inject;
 import model.config.DBConnection;
 import model.entity.Book;
 import model.repository.BookRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -13,9 +15,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.logging.Logger;
 
 public final class BookService {
+    private static final Logger logger = LogManager.getLogger();
     private static BookService INSTANCE;
     @Inject
     private BookRepository bookRepository;
@@ -36,10 +38,9 @@ public final class BookService {
 
         Comparator<Book> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            String errMessage = "Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability";
-            Logger.getGlobal().severe(errMessage);
-            throw new IllegalArgumentException(errMessage);
+            logger.error("Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability");
+            return List.of();
         }
 
         if (isReversed) {
@@ -51,21 +52,28 @@ public final class BookService {
                 .toList();
     }
 
-    public Book getBookByName(String bookName) {
-        return bookRepository.findByName(bookName);
+    public Book getBookByName(String bookName) throws NoSuchElementException {
+        return bookRepository.findByName(bookName)
+                .orElseThrow(() ->
+                        new NoSuchElementException(String.format("Книга с названием %s не найдена", bookName)));
     }
 
     public String getDescriptionByBookName(String bookName) {
-        return getBookByName(bookName).getDescription();
+        try {
+            return getBookByName(bookName).getDescription();
+        } catch (NoSuchElementException e) {
+            logger.error("Невозможно получить описание не существующей книги");
+            return "";
+        }
     }
 
-    public List<Book> formIdListFromNames(List<String> names) {
+    public List<Book> formIdListFromNames(List<String> names) throws NoSuchElementException {
         List<Book> result = new ArrayList<>();
         for (String name : names) {
             try {
                 result.add(getBookByName(name));
             } catch (NoSuchElementException e) {
-                System.out.println(e.getMessage());
+                logger.error("Не удалось добавить книгу в список: {}", e.getMessage());
             }
         }
 
@@ -81,37 +89,52 @@ public final class BookService {
         try {
             connection.setAutoCommit(false);
 
-            getBookByName(bookName).setAvailable();
+            try {
+                getBookByName(bookName).setAvailable();
+            } catch (NoSuchElementException e) {
+                logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
+            }
+
             if (isRequestSatisfactionNeeded) {
                 requestService.satisfyAllRequestsByBookId(getBookByName(bookName).getId());
             }
-            System.out.printf("Книга '%s' добавлена на склад", bookName);
+            logger.info("Книга '{}' добавлена на склад", bookName);
         } catch (SQLException e) {
             try {
+                logger.info("Книга не была добавлена на склад. Изменения, связанные с этой операцией, не были применены.");
                 connection.rollback();
             } catch (SQLException e1) {
+                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
                 throw new RuntimeException(e1);
             }
 
-            String errMessage = String.format("Не удалось добавить книгу на склад: %s", e.getMessage());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(e);
+            logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
         } finally {
             try {
                 connection.setAutoCommit(true);
             } catch (SQLException e1) {
+                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
                 throw new RuntimeException(e1);
             }
         }
     }
 
     public void removeFromStock(String bookName) {
-        getBookByName(bookName).setUnavailable();
-        System.out.printf("Книга '%s' списана со склада", bookName);
+        try {
+            getBookByName(bookName).setUnavailable();
+        } catch (NoSuchElementException e) {
+            logger.error("Не удалось списать книгу со склада: {}", e.getMessage());
+        }
+        logger.info("Книга '{}' списана со склада", bookName);
     }
 
     public boolean isBookAvailable(String bookName) {
-        return getBookByName(bookName).isAvailable();
+        try {
+            return getBookByName(bookName).isAvailable();
+        } catch (NoSuchElementException e) {
+            logger.error("Не удалось проверить наличие книги: {}", e.getMessage());
+            return false;
+        }
     }
 
     public void exportBooks(String filePath) {

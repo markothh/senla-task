@@ -2,6 +2,8 @@ package model.config;
 
 import model.annotations.ConfigProperty;
 import model.service.UserContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -9,9 +11,10 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.FileInputStream;
 import java.io.Serializable;
-import java.util.logging.Logger;
 
 public class AppState implements Serializable {
+    private static final Logger logger = LogManager.getLogger();
+
     @ConfigProperty(propertyName = "userContext")
     private static String userContextPath;
 
@@ -26,11 +29,11 @@ public class AppState implements Serializable {
     private static void loadItems(String filePath) {
         try (ObjectInputStream is = new ObjectInputStream(new FileInputStream(filePath))) {
             is.readObject();
-            Logger.getGlobal().info(String.format("Данные из файла %s загружены. ", filePath));
+            logger.info("Данные из файла {} загружены. ", filePath);
         } catch (IOException | ClassNotFoundException e) {
-            Logger.getGlobal().warning(String.format("Произошла ошибка при загрузке состояния программы. " +
+            logger.warn("Произошла ошибка при загрузке состояния программы. " +
                     "Работа будет продолжена с пустым списком объектов." +
-                    "Файл: %s", filePath));
+                    "Файл: {}", filePath);
         }
     }
 

@@ -7,6 +7,8 @@ import model.entity.DTO.UserProfile;
 import model.entity.Order;
 import model.enums.OrderStatus;
 import model.repository.OrderRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -14,14 +16,17 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.NoSuchElementException;
 
 public final class OrderService {
+    private static final Logger logger = LogManager.getLogger();
     private static OrderService INSTANCE;
     @Inject
     private OrderRepository orderRepository;
     @Inject
     private RequestService requestService;
+    @Inject
+    private BookService bookService;
 
     public List<Order> getOrders() {
         return orderRepository.findAll();
@@ -36,10 +41,9 @@ public final class OrderService {
 
         Comparator<Order> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            String errMessage = "Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: completedAt, price, status";
-            Logger.getGlobal().severe(errMessage);
-            throw new IllegalArgumentException(errMessage);
+            logger.error("Невозможна сортировка по указанному полю. " +
+                    "Возможные значения параметра сортировки: completedAt, price, status");
+            return List.of();
         }
 
         if (isReversed) {
@@ -56,11 +60,22 @@ public final class OrderService {
     }
 
     public void setOrderStatus(int orderId, OrderStatus status) {
-        orderRepository.setOrderStatus(orderId, status);
+        try {
+            orderRepository.setOrderStatus(orderId, status);
+        } catch (IllegalStateException e) {
+            logger.error("Не удалось изменить статус заказа с id = {}", orderId);
+        }
     }
 
-    public void createOrder(UserProfile user, List<Book> books) {
+    public void createOrder(UserProfile user, List<String> bookNames) {
         Connection connection = DBConnection.getInstance().getConnection();
+        List<Book> books;
+        try {
+            books = bookService.formIdListFromNames(bookNames);
+        } catch (NoSuchElementException e) {
+            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
+            return;
+        }
 
         try {
             connection.setAutoCommit(false);
@@ -68,35 +83,37 @@ public final class OrderService {
             Order order = new Order(user);
             for (Book book : books) {
                 if (!book.isAvailable()) {
-                    requestService.createRequest(book);
+                    requestService.createRequestIfNotAvailable(book);
                 }
 
                 order.addBook(book);
             }
 
             orderRepository.save(order);
-            System.out.printf("%nСоздан заказ: %n%s", order);
         } catch (SQLException e) {
             try {
+                logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
                 connection.rollback();
             } catch (SQLException e1) {
+                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
                 throw new RuntimeException(e1);
             }
-
-            String errMessage = String.format("Не удалось создать заказ: %s", e.getMessage());
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(e);
         } finally {
             try {
                 connection.setAutoCommit(true);
             } catch (SQLException e1) {
+                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
                 throw new RuntimeException(e1);
             }
         }
     }
 
     public void cancelOrder(int orderId) {
-        orderRepository.setOrderStatus(orderId, OrderStatus.CANCELLED);
+        try {
+            orderRepository.setOrderStatus(orderId, OrderStatus.CANCELLED);
+        } catch (IllegalStateException e) {
+            logger.error("Не удалось отменить заказ с id = {}", orderId);
+        }
     }
 
     public void exportOrders(String filePath) {

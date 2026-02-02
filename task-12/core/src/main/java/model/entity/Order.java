@@ -86,8 +86,7 @@ public class Order {
         this.completedAt = completedAt;
     }
 
-    public void setStatus(OrderStatus status) {
-        System.out.printf("%nТекущий статус заказа: %s", this.status);
+    public void setStatus(OrderStatus status) throws IllegalStateException {
         switch (status) {
             case NEW:
                 this.status = this.status.resetToNew(this);
@@ -99,8 +98,6 @@ public class Order {
                 this.status = this.status.complete(this);
                 break;
         }
-
-        System.out.printf("%nCтатус заказа после изменения: %s", this.status);
     }
 
     public void addBook(Book book) {
