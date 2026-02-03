@@ -124,6 +124,20 @@ public final class BookRepository implements Serializable, IRepository<Book> {
         }
     }
 
+    @Override
+    public void deleteById(int id) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("delete from books " +
+                        "where id = ?")) {
+            stmt.setInt(1, id);
+
+            stmt.execute();
+            logger.info("Книга с id = {} успешно удалена", id);
+        } catch (SQLException e) {
+            logger.error("Не удалось удалить книгу с id = {}", id);
+        }
+    }
+
     public Optional<Book> findByName(String bookName) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +

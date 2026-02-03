@@ -144,6 +144,20 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
         }
     }
 
+    @Override
+    public void deleteById(int id) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("delete from orders " +
+                        "where id = ?")) {
+            stmt.setInt(1, id);
+
+            stmt.execute();
+            logger.info("Заказ с id = {} успешно удален", id);
+        } catch (SQLException e) {
+            logger.error("Не удалось удалить заказ с id = {}", id);
+        }
+    }
+
     public String getOrderInfo(int orderId) {
         return findById(orderId)
                 .map(Order::getInfo)

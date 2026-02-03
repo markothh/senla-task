@@ -137,6 +137,20 @@ public class RequestRepository implements Serializable, IRepository<Request> {
         }
     }
 
+    @Override
+    public void deleteById(int id) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("delete from requests " +
+                        "where id = ?")) {
+            stmt.setInt(1, id);
+
+            stmt.execute();
+            logger.info("Запрос с id = {} успешно удален", id);
+        } catch (SQLException e) {
+            logger.error("Не удалось удалить запрос с id = {}", id);
+        }
+    }
+
     public void deleteByBookId(int bookId) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("delete from requests " +

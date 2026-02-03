@@ -81,6 +81,20 @@ public class UserRepository implements Serializable, IRepository<User> {
         }
     }
 
+    @Override
+    public void deleteById(int id) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("delete from users " +
+                        "where id = ?")) {
+            stmt.setInt(1, id);
+
+            stmt.execute();
+            logger.info("Пользователь с id = {} успешно удален", id);
+        } catch (SQLException e) {
+            logger.error("Не удалось удалить пользователя с id = {}", id);
+        }
+    }
+
     public Optional<UserProfile> findProfileById(int userId) {
         try (var stmt = DBConnection.getInstance().getConnection()
                 .prepareStatement("select " +
