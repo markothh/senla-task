@@ -1,4 +1,4 @@
-package model.utils;
+package model.utils.di;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;

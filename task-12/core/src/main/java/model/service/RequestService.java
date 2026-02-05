@@ -1,6 +1,9 @@
 package model.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import model.annotations.Inject;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.Request;
 import model.repository.RequestRepository;
@@ -47,15 +50,15 @@ public final class RequestService {
                 .toList();
     }
 
-    public void createRequestIfNotAvailable(Book book) {
+    public void createRequestIfNotAvailable(EntityManager em, Book book) {
         Optional<Request> optRequest = requestRepository.findByBookId(book.getId());
         Request request;
         if (optRequest.isPresent()) {
             request = optRequest.get();
-            requestRepository.increaseAmount(request.getId());
+            requestRepository.increaseAmount(em, request.getId());
         } else {
             request = new Request(book);
-            requestRepository.save(request);
+            requestRepository.save(em, request);
         }
     }
 
@@ -66,14 +69,25 @@ public final class RequestService {
 
         try {
             Book bookToRequest = bookService.getBookByName(bookName);
-            createRequestIfNotAvailable(bookToRequest);
+            try (EntityManager em = JPAConfig.getEntityManager()) {
+                EntityTransaction tx = em.getTransaction();
+                try {
+                    tx.begin();
+                    createRequestIfNotAvailable(em, bookToRequest);
+                    tx.commit();
+                } catch (Exception e) {
+                    logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+                    tx.rollback();
+                }
+            }
+
         } catch (NoSuchElementException e) {
             logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
         }
     }
 
-    public void satisfyAllRequestsByBookId(int bookId) {
-        requestRepository.deleteByBookId(bookId);
+    public void satisfyAllRequestsByBookId(EntityManager em, int bookId) {
+        requestRepository.deleteByBookId(em, bookId);
     }
 
     public void exportRequests(String filePath) {

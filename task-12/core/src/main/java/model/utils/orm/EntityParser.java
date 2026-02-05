@@ -1,4 +1,4 @@
-package model.utils;
+package model.utils.orm;
 
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
@@ -18,7 +18,7 @@ public class EntityParser {
 
     public static Order parseOrder(ResultSet rs) throws IllegalArgumentException {
         try {
-            UserProfile user = parseUserProfile(rs);
+            User user = parseUser(rs);
 
             return new Order(
                     rs.getInt("order_id"),

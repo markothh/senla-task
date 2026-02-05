@@ -1,16 +1,18 @@
 package model.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import model.annotations.Inject;
-import model.config.DBConnection;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
 import model.entity.Order;
+import model.entity.User;
 import model.enums.OrderStatus;
 import model.repository.OrderRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -63,12 +65,11 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, status);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось изменить статус заказа с id = {}", orderId);
+            logger.error("Не удалось изменить статус заказа с id = {}: {}", orderId, e.getMessage());
         }
     }
 
     public void createOrder(UserProfile user, List<String> bookNames) {
-        Connection connection = DBConnection.getInstance().getConnection();
         List<Book> books;
         try {
             books = bookService.formIdListFromNames(bookNames);
@@ -77,33 +78,22 @@ public final class OrderService {
             return;
         }
 
-        try {
-            connection.setAutoCommit(false);
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            EntityTransaction tx = em.getTransaction();
 
-            Order order = new Order(user);
-            for (Book book : books) {
-                if (!book.isAvailable()) {
-                    requestService.createRequestIfNotAvailable(book);
+            try {
+                Order order = new Order(em.getReference(User.class, user.getId()));
+                for (Book book : books) {
+                    if (!book.isAvailable()) {
+                        requestService.createRequestIfNotAvailable(em, book);
+                    }
+
+                    order.addBook(book);
                 }
 
-                order.addBook(book);
-            }
-
-            orderRepository.save(order);
-        } catch (SQLException e) {
-            try {
+                orderRepository.save(em, order);
+            } catch (Exception e) {
                 logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
-                connection.rollback();
-            } catch (SQLException e1) {
-                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
-                throw new RuntimeException(e1);
-            }
-        } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e1) {
-                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
-                throw new RuntimeException(e1);
             }
         }
     }

@@ -3,7 +3,7 @@ package model;
 import model.annotations.Inject;
 import model.config.AppConfig;
 import model.config.AppState;
-import model.config.DBConnection;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
 import model.entity.Order;
@@ -15,7 +15,7 @@ import model.service.OrderService;
 import model.service.RequestService;
 import model.service.StatisticsService;
 import model.service.UserService;
-import model.utils.ConfigLoader;
+import model.utils.di.ConfigLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,7 +43,6 @@ public final class BookShop {
     private BookShop() {
         ConfigLoader.configure(new AppState());
         AppState.loadState();
-        ConfigLoader.configure(DBConnection.getInstance());
     }
 
     public static BookShop getInstance() {

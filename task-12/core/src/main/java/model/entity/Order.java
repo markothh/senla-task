@@ -1,34 +1,66 @@
 package model.entity;
 
-import model.entity.DTO.UserProfile;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import model.status.IOrderStatus;
 import model.status.NewOrderStatus;
 import model.enums.OrderStatus;
+import model.utils.orm.OrderStatusConverter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "orders")
 public class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    private final UserProfile user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @ManyToMany (fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "order_book",
+            joinColumns = @JoinColumn(name = "order_id"),
+            inverseJoinColumns = @JoinColumn(name = "book_id"))
     private List<Book> books = new ArrayList<>();
-    private final LocalDate createdAt;
+
+    @Column(name = "created_at")
+    private LocalDate createdAt;
+
+    @Column(name = "completed_at")
     private LocalDate completedAt;
+
+    @Column(name = "status")
+    @Convert(converter = OrderStatusConverter.class)
     private IOrderStatus status;
 
+    public Order() { }
 
-    public Order(UserProfile user) {
+    public Order(User user) {
         this.createdAt = LocalDate.now();
         this.status = new NewOrderStatus();
-
         this.user = user;
     }
 
-    public Order(int id, UserProfile user, List<Book> books, LocalDate createdAt, LocalDate completedAt, IOrderStatus status) {
+    public Order(int id, User user, List<Book> books, LocalDate createdAt, LocalDate completedAt, IOrderStatus status) {
         this.id = id;
-        this.user = user;
         this.books = books;
+        this.user = user;
         this.createdAt = createdAt;
         this.completedAt = completedAt;
         this.status = status;
@@ -38,7 +70,6 @@ public class Order {
     public String toString() {
         return "\nOrder{" +
                 "id=" + id +
-                ", user=" + user +
                 ", \n\tbooks=" + books +
                 ", \n\tcreatedAt=" + createdAt +
                 ", completedAt=" + completedAt +
@@ -52,7 +83,7 @@ public class Order {
                 id, user.getId());
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
@@ -60,7 +91,7 @@ public class Order {
         return books;
     }
 
-    public UserProfile getUser() {
+    public User getUser() {
         return user;
     }
 
@@ -102,10 +133,6 @@ public class Order {
 
     public void addBook(Book book) {
         this.books.add(book);
-    }
-
-    public void addBooks(List<Book> books) {
-        this.books.addAll(books);
     }
 
     public boolean areBooksAvailable() {

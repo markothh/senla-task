@@ -1,6 +1,6 @@
 package view;
 
-import model.utils.Injector;
+import model.utils.di.Injector;
 import view.menu.Menu;
 
 public class MenuProvider {

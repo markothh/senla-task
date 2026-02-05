@@ -1,20 +1,20 @@
 package model.repository;
 
-import model.config.DBConnection;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.TypedQuery;
+import model.config.JPAConfig;
 import model.entity.DTO.UserProfile;
+import model.entity.Request;
 import model.entity.User;
 import model.service.CSVHandler.CSVHandlers;
-import model.utils.EntityParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.Serializable;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class UserRepository implements Serializable, IRepository<User> {
+public class UserRepository implements IRepository<User> {
     private static final Logger logger = LogManager.getLogger();
     private static UserRepository INSTANCE;
 
@@ -26,149 +26,74 @@ public class UserRepository implements Serializable, IRepository<User> {
     }
 
     @Override
+    public Optional<User> findById(int id) {
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            User user = em.find(User.class, id);
+            if (user != null) {
+                logger.info("Пользователь с id = {} получен", id);
+                return Optional.of(user);
+            } else {
+                logger.error("Не удалось получить данные пользователя с id = {}", id);
+                return Optional.empty();
+            }
+        }
+    }
+
+    @Override
     public List<User> findAll() {
-        List<User> users = new ArrayList<>();
-        try (var stmt = DBConnection.getInstance().getConnection().createStatement()) {
-            try (var rs = stmt.executeQuery("select " +
-                    "id as user_id, " +
-                    "name as user_name, " +
-                    "password as user_password, " +
-                    "role as user_role " +
-                    "from users")) {
-                while (rs.next()) {
-                    try {
-                        users.add(EntityParser.parseUser(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
-                    }
-                }
-            }
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            TypedQuery<User> query = em.createQuery("select u from User u", User.class);
             logger.info("Список пользователей успешно получен.");
-        } catch (SQLException e) {
-            logger.error("Не удалось получить список пользователей: {}", e.getMessage());
-        }
-        return users;
-    }
-
-    @Override
-    public Optional<User> findById(int userId) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("select " +
-                                "id as user_id, " +
-                                "name as user_name, " +
-                                "password as user_password, " +
-                                "role as user_role " +
-                                "from users " +
-                                "where id = ?")) {
-            stmt.setInt(1, userId);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Пользователь с id = {} получен", userId);
-                    try {
-                        return Optional.of(EntityParser.parseUser(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные пользователя с id = {}", userId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные пользователя с id = {}: {}", userId, e.getMessage());
-            return Optional.empty();
+            return query.getResultList();
         }
     }
 
     @Override
-    public void deleteById(int id) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("delete from users " +
-                        "where id = ?")) {
-            stmt.setInt(1, id);
-
-            stmt.execute();
-            logger.info("Пользователь с id = {} успешно удален", id);
-        } catch (SQLException e) {
-            logger.error("Не удалось удалить пользователя с id = {}", id);
+    public void save(EntityManager em, User obj) {
+        if (obj.getId() == null) {
+            em.persist(obj);
+        } else {
+            em.merge(obj);
         }
-    }
-
-    public Optional<UserProfile> findProfileById(int userId) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("select " +
-                        "id as user_id, " +
-                        "name as user_name " +
-                        "from users " +
-                        "where id = ?")) {
-            stmt.setInt(1, userId);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Пользователь с id = {} успешно получен", userId);
-                    try {
-                        return Optional.of(EntityParser.parseUserProfile(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные пользователя с id = {}", userId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные пользователя с id = {}: {}", userId, e.getMessage());
-            return Optional.empty();
-        }
+        logger.info("Пользователь успешно добавлен");
     }
 
     @Override
-    public void save(User user) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into users (" +
-                        "name, " +
-                        "password, " +
-                        "role)" +
-                        "values (?, ?, ?)")) {
-            stmt.setString(1, user.getName());
-            stmt.setString(2, user.getPassword());
-            stmt.setString(3, user.getRole().toString());
+    public void deleteById(EntityManager em, int id) {
+        User user = em.find(User.class, id);
+        if (user != null) {
+            em.remove(user);
+        } else {
+            logger.error("Не удалось получить данные пользователя с id = {}", id);
+        }
+        logger.info("Пользователь с id = {} успешно удален", id);
+    }
 
-            stmt.execute();
-            logger.info("Пользователь с логином '{}' успешно добавлен", user.getName());
-        } catch (SQLException e) {
-            logger.error("Не удалось добавить пользователя с логином '{}': {}", user.getName(), e.getMessage());
+    public Optional<UserProfile> findProfileById(int id) {
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            User user = em.find(User.class, id);
+            if (user != null) {
+                logger.info("Пользователь с id = {} получен", id);
+                return Optional.of(new UserProfile(user.getId(), user.getName()));
+            } else {
+                logger.error("Не удалось получить данные пользователя с id = {}", id);
+                return Optional.empty();
+            }
         }
     }
 
-    public Optional<User> findByName(String userName) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("select " +
-                        "id as user_id, " +
-                        "name as user_name, " +
-                        "password as user_password, " +
-                        "role as user_role " +
-                        "from users " +
-                        "where name = ?")) {
-            stmt.setString(1, userName);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Пользователь с name = {} успешно получен", userName);
-                    try {
-                        return Optional.of(EntityParser.parseUser(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные пользователя не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные пользователя с name = {}", userName);
-                    return Optional.empty();
-                }
+    public Optional<User> findByName(String name) {
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            TypedQuery<User> query = em.createQuery("select u from User u where u.name = :name", User.class);
+            query.setParameter("name", name);
+            User user = query.getSingleResult();
+            if (user != null) {
+                logger.info("Пользователь с name = {} получена", name);
+                return Optional.of(user);
+            } else {
+                logger.error("Не удалось получить данные пользователя с name = {}", name);
+                return Optional.empty();
             }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные пользователя с name = {}: {}", userName, e.getMessage());
-            return Optional.empty();
         }
     }
 
@@ -181,31 +106,22 @@ public class UserRepository implements Serializable, IRepository<User> {
     }
 
     public void importFromCSV(String filePath) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into users (" +
-                        "id, " +
-                        "name, " +
-                        "password, " +
-                        "role) " +
-                        "values (?, ?, ?, ?) " +
-                        "on conflict (id) " +
-                        "do update set " +
-                        "name = EXCLUDED.name, " +
-                        "password = EXCLUDED.password, " +
-                        "role = EXCLUDED.role")) {
+        try (EntityManager em = JPAConfig.getEntityManager()) {
             for (User user : CSVHandlers.users().importFromCSV(filePath)) {
-                stmt.setInt(1, user.getId());
-                stmt.setString(2, user.getName());
-                stmt.setString(3, user.getPassword());
-                stmt.setString(4, user.getRole().toString());
-
-                stmt.addBatch();
+                EntityTransaction tx = em.getTransaction();
+                try {
+                    tx.begin();
+                    save(em, user);
+                    tx.commit();
+                } catch (Exception e) {
+                    logger.error("Не удалось импортировать пользователя с id = {}: {}", user.getId(), e.getMessage());
+                    tx.rollback();
+                }
             }
-
-            stmt.executeBatch();
-            logger.info("Пользователи успешно импортированы из файла '{}'", filePath);
-        } catch (SQLException e) {
-            logger.error("Не удалось импортировать пользователей из файла '{}'. Подробнее: {}", filePath, e.getMessage());
         }
+
+        logger.info("Пользователи успешно импортированы из файла '{}'", filePath);
     }
+
+    private UserRepository() { }
 }

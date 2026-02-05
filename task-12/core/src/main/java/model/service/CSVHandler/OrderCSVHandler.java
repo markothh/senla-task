@@ -3,6 +3,7 @@ package model.service.CSVHandler;
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
 import model.entity.Order;
+import model.entity.User;
 import model.enums.OrderStatus;
 import model.repository.BookRepository;
 import model.repository.OrderRepository;
@@ -102,8 +103,8 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
     }
 
 
-    private UserProfile findUser(int userId) {
-        return userRepository.findProfileById(userId)
+    private User findUser(int userId) {
+        return userRepository.findById(userId)
                 .orElseThrow(() ->
                         new NoSuchElementException(String.format("Пользователь с id = %d не найден", userId)));
     }

@@ -1,7 +1,9 @@
 package model.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import model.annotations.Inject;
-import model.config.DBConnection;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.repository.BookRepository;
 import org.apache.logging.log4j.LogManager;
@@ -84,37 +86,28 @@ public final class BookService {
     }
 
     public void addToStock(String bookName, boolean isRequestSatisfactionNeeded) {
-        Connection connection = DBConnection.getInstance().getConnection();
-
-        try {
-            connection.setAutoCommit(false);
-
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            EntityTransaction tx = em.getTransaction();
             try {
-                getBookByName(bookName).setAvailable();
-            } catch (NoSuchElementException e) {
-                logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
-            }
+                tx.begin();
 
-            if (isRequestSatisfactionNeeded) {
-                requestService.satisfyAllRequestsByBookId(getBookByName(bookName).getId());
-            }
-            logger.info("Книга '{}' добавлена на склад", bookName);
-        } catch (SQLException e) {
-            try {
-                logger.info("Книга не была добавлена на склад. Изменения, связанные с этой операцией, не были применены.");
-                connection.rollback();
-            } catch (SQLException e1) {
-                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
-                throw new RuntimeException(e1);
-            }
+                try {
+                    Book book = getBookByName(bookName);
+                    book.setAvailable();
+                    em.merge(book);
+                } catch (NoSuchElementException e) {
+                    logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
+                }
 
-            logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
-        } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e1) {
-                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
-                throw new RuntimeException(e1);
+                if (isRequestSatisfactionNeeded) {
+                    requestService.satisfyAllRequestsByBookId(em, getBookByName(bookName).getId());
+                }
+                logger.info("Книга '{}' добавлена на склад", bookName);
+
+                tx.commit();
+            } catch (Exception e) {
+                tx.rollback();
+                logger.error("Не удалось добавить книгу '{}' на склад: {}", bookName, e.getMessage());
             }
         }
     }

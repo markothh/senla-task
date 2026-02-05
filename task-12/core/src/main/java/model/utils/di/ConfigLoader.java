@@ -1,4 +1,4 @@
-package model.utils;
+package model.utils.di;
 
 import model.annotations.ConfigProperty;
 
