@@ -17,6 +17,17 @@ public final class BookRepository implements IRepository<Book> {
     private static final Logger logger = LogManager.getLogger();
     private final EntityManager em;
 
+    private static final String GET_BY_ID_SUCCESS_MSG = "Книга с id = {} получена";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
+    private static final String GET_BY_NAME_SUCCESS_MSG = "Книга с name = {} получена";
+    private static final String GET_BY_NAME_ERROR_MSG = "Не удалось получить данные книги с name = {}";
+    private static final String GET_ALL_SUCCESS_MSG = "Список книг успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Книга '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Книга с id = {} успешно удалена";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Книги успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать книгу с id = {}: {}";
+
     public BookRepository(EntityManager em) {
         this.em = em;
     }
@@ -25,10 +36,10 @@ public final class BookRepository implements IRepository<Book> {
     public Optional<Book> findById(int id) {
         Book book = em.find(Book.class, id);
         if (book != null) {
-            logger.info("Книга с id = {} получена", id);
+            logger.info(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(book);
         } else {
-            logger.error("Не удалось получить данные книги с id = {}", id);
+            logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
     }
@@ -36,7 +47,7 @@ public final class BookRepository implements IRepository<Book> {
     @Override
     public List<Book> findAll() {
         TypedQuery<Book> query = em.createQuery("select b from Book b", Book.class);
-        logger.info("Список книг успешно получен.");
+        logger.info(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 
@@ -47,7 +58,7 @@ public final class BookRepository implements IRepository<Book> {
         } else {
             em.merge(obj);
         }
-        logger.info("Книга '{}' успешно добавлена", obj.getName());
+        logger.info(ADD_SUCCESS_MSG, obj.getName());
     }
 
 
@@ -57,9 +68,9 @@ public final class BookRepository implements IRepository<Book> {
         if (book != null) {
             em.remove(book);
         } else {
-            logger.error("Не удалось получить данные книги с id = {}", id);
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
         }
-        logger.info("Книга с id = {} успешно удалена", id);
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
     public Optional<Book> findByName(String name) {
@@ -68,10 +79,10 @@ public final class BookRepository implements IRepository<Book> {
             query.setParameter("name", name);
             Book book = query.getSingleResult();
             if (book != null) {
-                logger.info("Книга с name = {} получена", name);
+                logger.info(GET_BY_NAME_SUCCESS_MSG, name);
                 return Optional.of(book);
             } else {
-                logger.error("Не удалось получить данные книги с name = {}", name);
+                logger.error(GET_BY_NAME_ERROR_MSG, name);
                 return Optional.empty();
             }
         }
@@ -90,11 +101,11 @@ public final class BookRepository implements IRepository<Book> {
                 save(book);
                 tx.commit();
             } catch (Exception e) {
-                logger.error("Не удалось импортировать книгу с id = {}: {}", book.getId(), e.getMessage());
+                logger.error(IMPORT_ERROR_MSG, book.getId(), e.getMessage());
                 tx.rollback();
             }
         }
 
-        logger.info("Книги успешно импортированы из файла '{}'", filePath);
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
     }
 }

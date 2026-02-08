@@ -1,14 +1,19 @@
 package model.utils.di;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public class TypeConverter {
+    private static final Logger logger = LogManager.getLogger();
+    private static final String CONVERT_ERROR_MSG = "Не удалось конвертировать значение. Не обработан тип";
+
     public static Object convert(String value, Field field, Class<?> type) {
         Class<?> targetType = type != Object.class ? type : field.getType();
 
@@ -51,9 +56,8 @@ public class TypeConverter {
         if (targetType == String.class) {
             return value;
         } else {
-            String errMessage = "Не удалось конвертировать значение.Не обработан тип";
-            Logger.getGlobal().severe(errMessage);
-            throw new RuntimeException(errMessage);
+            logger.fatal(CONVERT_ERROR_MSG);
+            throw new RuntimeException();
         }
     }
 

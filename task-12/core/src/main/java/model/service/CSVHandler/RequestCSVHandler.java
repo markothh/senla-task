@@ -27,6 +27,17 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
     private final BookRepository bookRepository;
     private final RequestRepository requestRepository;
 
+    private static final String EXPORT_SUCCESS_MSG = "Запросы успешно экспортированы в файл '{}'";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String ADD_SUCCESS_MSG = "Информация о запросах была получена из файла '{}'";
+    private static final String ADD_ERROR_MSG = "Данные запроса не добавлены: {}";
+    private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
+    private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
+    private static final String BOOK_NOT_FOUND_ERROR_MSG = "Книга с id = %d не найдена";
+    private static final String ASSOCIATION_ERROR = "Не удалось установить соответствия между сущностями: %s";
+    private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность запроса из данных файла. Неверный формат данных: %s";
+
+
     private RequestCSVHandler() {
         EntityManager em = JPAConfig.getEntityManager();
         bookRepository = new BookRepository(em);
@@ -53,9 +64,9 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
                 );
             }
 
-            logger.info("Запросы успешно экспортированы в файл: \"{}\"", filePath);
+            logger.info(EXPORT_SUCCESS_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Не удалось открыть для записи файл '{}'", filePath);
+            logger.error(EXPORT_ERROR_MSG, filePath);
         }
     }
 
@@ -71,14 +82,14 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
                 try {
                     result.add(parseRequest(line));
                 } catch (IllegalArgumentException e) {
-                    logger.error("Данные запроса не добавлены: {}", e.getMessage());
+                    logger.error(ADD_ERROR_MSG, e.getMessage());
                 }
             }
-            logger.info("Информация о запросах была получена из файла '{}'", filePath);
+            logger.info(ADD_SUCCESS_MSG, filePath);
         } catch (FileNotFoundException e) {
-            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
+            logger.error(FILE_OPEN_ERROR_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Ошибка чтения из файла '{}'", filePath);
+            logger.error(READ_ERROR_MSG, filePath);
         }
 
         return result;
@@ -87,7 +98,7 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
     private Book findBook(int bookId) {
         return bookRepository.findById(bookId)
                 .orElseThrow(() ->
-                        new NoSuchElementException(String.format("Книга с id = %d не найдена", bookId)));
+                        new NoSuchElementException(String.format(BOOK_NOT_FOUND_ERROR_MSG, bookId)));
     }
 
     private Request parseRequest(String requestData) {
@@ -100,10 +111,10 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
                     Integer.parseInt(args[3]));
         } catch (NoSuchElementException e) {
             logger.debug(requestData);
-            throw new IllegalArgumentException(String.format("Не удалось установить соответствия между сущностями: %s", e.getMessage()));
+            throw new IllegalArgumentException(String.format(ASSOCIATION_ERROR, e.getMessage()));
         } catch (Exception e) {
             logger.debug(requestData);
-            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность запроса из данных файла. Неверный формат данных: %s", e.getMessage()));
+            throw new IllegalArgumentException(String.format(PARSE_ERROR_MSG, e.getMessage()));
         }
     }
 }

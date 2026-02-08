@@ -17,6 +17,17 @@ public class OrderRepository implements IRepository<Order> {
     private static final Logger logger = LogManager.getLogger();
     private final EntityManager em;
 
+    private static final String GET_BY_ID_SUCCESS_MSG = "Заказ с id = {} получен";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
+    private static final String GET_ALL_SUCCESS_MSG = "Список заказов успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Заказ '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Заказ с id = {} успешно удален";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Заказы успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать заказ с id = {}: {}";
+    private static final String SET_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: заказ не найден";
+    private static final String SET_STATUS_SUCCESS_MSG = "Статус заказа с id = {} успешно изменен";
+
     public OrderRepository(EntityManager em) {
         this.em = em;
     }
@@ -25,10 +36,10 @@ public class OrderRepository implements IRepository<Order> {
     public Optional<Order> findById(int id) {
         Order order = em.find(Order.class, id);
         if (order != null) {
-            logger.info("Заказ с id = {} получен", id);
+            logger.info(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(order);
         } else {
-            logger.error("Не удалось получить данные заказа с id = {}", id);
+            logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
     }
@@ -39,7 +50,7 @@ public class OrderRepository implements IRepository<Order> {
                 "select o from Order o " +
                         "join fetch o.user " +
                         "join fetch o.books", Order.class);
-        logger.info("Список заказов успешно получен.");
+        logger.info(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 
@@ -50,7 +61,7 @@ public class OrderRepository implements IRepository<Order> {
         } else {
             em.merge(obj);
         }
-        logger.info("Заказ успешно добавлен");
+        logger.info(ADD_SUCCESS_MSG);
     }
 
     @Override
@@ -59,9 +70,9 @@ public class OrderRepository implements IRepository<Order> {
         if (order != null) {
             em.remove(order);
         } else {
-            logger.error("Не удалось получить данные заказа с id = {}", id);
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
         }
-        logger.info("Заказ с id = {} успешно удален", id);
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
     public String getOrderInfo(int orderId) {
@@ -78,12 +89,12 @@ public class OrderRepository implements IRepository<Order> {
             findById(id).ifPresentOrElse(
                     order -> order.setStatus(status),
                     () -> {
-                        logger.error("Не удалось изменить статус заказа с id = {}: заказ не найден", id);
+                        logger.error(SET_STATUS_ERROR_MSG, id);
                     }
             );
 
             tx.commit();
-            logger.info("Статус заказа с id = {} успешно изменена", id);
+            logger.info(SET_STATUS_SUCCESS_MSG, id);
         } catch (Exception e) {
             tx.rollback();
             throw e;
@@ -102,11 +113,11 @@ public class OrderRepository implements IRepository<Order> {
                 save(order);
                 tx.commit();
             } catch (Exception e) {
-                logger.error("Не удалось импортировать заказ с id = {}: {}", order.getId(), e.getMessage());
+                logger.error(IMPORT_ERROR_MSG, order.getId(), e.getMessage());
                 tx.rollback();
             }
         }
 
-        logger.info("Заказы успешно импортированы из файла '{}'", filePath);
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
     }
 }

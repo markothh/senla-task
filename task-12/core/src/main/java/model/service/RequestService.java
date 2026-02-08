@@ -21,6 +21,12 @@ public final class RequestService {
     private final EntityManager em;
     private final RequestRepository requestRepository = new RequestRepository(JPAConfig.getEntityManager());
 
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: quantity, bookName";
+    private static final String REQUEST_CREATION_AVAILABILITY_ERROR_MSG = "Невозможно создать заказ на книгу, которая есть в наличии.";
+    private static final String REQUEST_CREATION_ERROR_MSG = "Не удалось создать запрос на книгу '{}': {}";
+    private static final String REQUEST_CREATION_SUCCESS_MSG = "Успешно создан запрос на книгу '{}'";
+
     public RequestService(EntityManager em) {
         this.em = em;
     }
@@ -37,8 +43,7 @@ public final class RequestService {
 
         Comparator<Request> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            logger.error("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: quantity, bookName");
+            logger.error(SORT_ERROR_MSG);
             return List.of();
         }
 
@@ -66,7 +71,7 @@ public final class RequestService {
     public void createRequest(String bookName) {
         BookService bookService = new BookService(em);
         if (bookService.isBookAvailable(bookName)) {
-            logger.error("Невозможно создать заказ на книгу, которая есть в наличии.");
+            logger.error(REQUEST_CREATION_AVAILABILITY_ERROR_MSG);
         }
 
         try {
@@ -76,13 +81,14 @@ public final class RequestService {
                 tx.begin();
                 createRequestIfNotAvailable(em, bookToRequest);
                 tx.commit();
+                logger.info(REQUEST_CREATION_SUCCESS_MSG, bookName);
             } catch (Exception e) {
-                logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+                logger.error(REQUEST_CREATION_ERROR_MSG, bookName, e.getMessage());
                 tx.rollback();
             }
 
         } catch (NoSuchElementException e) {
-            logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+            logger.error(REQUEST_CREATION_ERROR_MSG, bookName, e.getMessage());
         }
     }
 

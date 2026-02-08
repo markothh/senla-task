@@ -15,6 +15,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 public class EntityParser {
+    private static final String ORDER_ERROR_MSG = "Не удалось извлечь данные заказа. Неверный формат данных";
+    private static final String BOOK_ERROR_MSG = "Не удалось извлечь данные книги. Неверный формат данных";
+    private static final String REQUEST_ERROR_MSG = "Не удалось извлечь данные запроса. Неверный формат данных";
+    private static final String USER_ERROR_MSG = "Не удалось извлечь данные пользователя. Неверный формат данных";
 
     public static Order parseOrder(ResultSet rs) throws IllegalArgumentException {
         try {
@@ -29,7 +33,7 @@ public class EntityParser {
                     IOrderStatus.from(OrderStatus.valueOf(rs.getString("order_status")))
             );
         } catch (SQLException e) {
-            throw new IllegalArgumentException("Не удалось извлечь данные заказа. Неверный формат данных");
+            throw new IllegalArgumentException(ORDER_ERROR_MSG);
         }
     }
 
@@ -47,7 +51,7 @@ public class EntityParser {
                     rs.getDate("book_stock_date") != null ? rs.getDate("book_stock_date").toLocalDate() : null
             );
         } catch (SQLException e) {
-            throw new IllegalArgumentException("Не удалось извлечь данные книги. Неверный формат данных");
+            throw new IllegalArgumentException(BOOK_ERROR_MSG);
         }
     }
 
@@ -60,7 +64,7 @@ public class EntityParser {
                     rs.getInt("request_quantity")
             );
         } catch (SQLException e) {
-            throw new IllegalArgumentException("Не удалось извлечь данные запроса. Неверный формат данных");
+            throw new IllegalArgumentException(REQUEST_ERROR_MSG);
         }
     }
 
@@ -73,7 +77,7 @@ public class EntityParser {
                     UserRole.valueOf(rs.getString("user_role"))
             );
         } catch (SQLException e) {
-            throw new IllegalArgumentException("Не удалось извлечь данные пользователя. Неверный формат данных");
+            throw new IllegalArgumentException(USER_ERROR_MSG);
         }
     }
 
@@ -84,7 +88,7 @@ public class EntityParser {
                     rs.getString("user_name")
             );
         } catch (SQLException e) {
-            throw new IllegalArgumentException("Не удалось извлечь данные пользователя. Неверный формат данных");
+            throw new IllegalArgumentException(USER_ERROR_MSG);
         }
     }
 }

@@ -11,8 +11,10 @@ public class JPAConfig {
     private static final Logger logger = LogManager.getLogger();
     private static final EntityManagerFactory emf = buildEMF();
 
+    private static final String INIT_MSG = "Фабрика EntityManager инициализирована";
+
     public static EntityManager getEntityManager() {
-        logger.info("Фабрика EntityManager инициализирована");
+        logger.info(INIT_MSG);
         return emf.createEntityManager();
     }
 

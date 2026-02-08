@@ -16,6 +16,17 @@ public class UserRepository implements IRepository<User> {
     private static final Logger logger = LogManager.getLogger();
     private final EntityManager em;
 
+    private static final String GET_BY_ID_SUCCESS_MSG = "Пользователь с id = {} получен";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные пользователя с id = {}";
+    private static final String GET_BY_NAME_SUCCESS_MSG = "Пользователь с name = {} получен";
+    private static final String GET_BY_NAME_ERROR_MSG = "Не удалось получить данные пользователя с name = {}";
+    private static final String GET_ALL_SUCCESS_MSG = "Список пользователей успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Пользователь '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Пользователь с id = {} успешно удален";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные пользователя с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Пользователи успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать пользователя с id = {}: {}";
+
     public UserRepository(EntityManager em) {
         this.em = em;
     }
@@ -24,10 +35,10 @@ public class UserRepository implements IRepository<User> {
     public Optional<User> findById(int id) {
         User user = em.find(User.class, id);
         if (user != null) {
-            logger.info("Пользователь с id = {} получен", id);
+            logger.info(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(user);
         } else {
-            logger.error("Не удалось получить данные пользователя с id = {}", id);
+            logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
     }
@@ -35,7 +46,7 @@ public class UserRepository implements IRepository<User> {
     @Override
     public List<User> findAll() {
         TypedQuery<User> query = em.createQuery("select u from User u", User.class);
-        logger.info("Список пользователей успешно получен.");
+        logger.info(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 
@@ -46,7 +57,7 @@ public class UserRepository implements IRepository<User> {
         } else {
             em.merge(obj);
         }
-        logger.info("Пользователь успешно добавлен");
+        logger.info(ADD_SUCCESS_MSG);
     }
 
     @Override
@@ -55,18 +66,18 @@ public class UserRepository implements IRepository<User> {
         if (user != null) {
             em.remove(user);
         } else {
-            logger.error("Не удалось получить данные пользователя с id = {}", id);
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
         }
-        logger.info("Пользователь с id = {} успешно удален", id);
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
     public Optional<UserProfile> findProfileById(int id) {
         User user = em.find(User.class, id);
         if (user != null) {
-            logger.info("Пользователь с id = {} получен", id);
+            logger.info(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(new UserProfile(user.getId(), user.getName()));
         } else {
-            logger.error("Не удалось получить данные пользователя с id = {}", id);
+            logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
     }
@@ -76,10 +87,10 @@ public class UserRepository implements IRepository<User> {
         query.setParameter("name", name);
         User user = query.getSingleResult();
         if (user != null) {
-            logger.info("Пользователь с name = {} получена", name);
+            logger.info(GET_BY_NAME_SUCCESS_MSG, name);
             return Optional.of(user);
         } else {
-            logger.error("Не удалось получить данные пользователя с name = {}", name);
+            logger.error(GET_BY_NAME_ERROR_MSG, name);
             return Optional.empty();
         }
     }
@@ -100,11 +111,11 @@ public class UserRepository implements IRepository<User> {
                 save(user);
                 tx.commit();
             } catch (Exception e) {
-                logger.error("Не удалось импортировать пользователя с id = {}: {}", user.getId(), e.getMessage());
+                logger.error(IMPORT_ERROR_MSG, user.getId(), e.getMessage());
                 tx.rollback();
             }
         }
 
-        logger.info("Пользователи успешно импортированы из файла '{}'", filePath);
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
     }
 }

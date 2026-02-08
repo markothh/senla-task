@@ -24,6 +24,12 @@ public final class OrderService {
     private static OrderService INSTANCE;
     private final OrderRepository orderRepository = new OrderRepository(JPAConfig.getEntityManager());
 
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: completedAt, price, status";
+    private static final String CHANGE_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: {}";
+    private static final String ORDER_CREATION_ERROR_MSG = "Не удалось сформировать заказ: {}";
+    private static final String ORDER_CANCELLATION_ERROR_MSG = "Не удалось отменить заказ с id = {}";
+
     public List<Order> getOrders() {
         return orderRepository.findAll();
     }
@@ -59,7 +65,7 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, status);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось изменить статус заказа с id = {}: {}", orderId, e.getMessage());
+            logger.error(CHANGE_STATUS_ERROR_MSG, orderId, e.getMessage());
         }
     }
 
@@ -71,7 +77,7 @@ public final class OrderService {
             try {
                 books = bookService.formIdListFromNames(bookNames);
             } catch (NoSuchElementException e) {
-                logger.error("Не удалось сформировать заказ: {}", e.getMessage());
+                logger.error(ORDER_CREATION_ERROR_MSG, e.getMessage());
                 return;
             }
 
@@ -89,7 +95,7 @@ public final class OrderService {
 
                 orderRepository.save(order);
             } catch (Exception e) {
-                logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
+                logger.info(ORDER_CREATION_ERROR_MSG, e.getMessage());
             }
         }
     }
@@ -98,7 +104,7 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, OrderStatus.CANCELLED);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось отменить заказ с id = {}", orderId);
+            logger.error(ORDER_CANCELLATION_ERROR_MSG, orderId);
         }
     }
 

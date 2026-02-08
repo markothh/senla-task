@@ -15,6 +15,8 @@ public class Injector {
     private static final Logger logger = LogManager.getLogger();
     private static final Set<Object> initialized = new HashSet<>();
 
+    private static final String INJECT_ERROR_MSG = "Ошибка внедрения зависимости. Не удалось получить экземпляр {}.";
+
     public static void inject(Object target) {
         if (target == null) {
             return;
@@ -55,7 +57,7 @@ public class Injector {
             Method getInstanceMethod = c.getDeclaredMethod("getInstance");
             return getInstanceMethod.invoke(null);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            logger.fatal("Ошибка внедрения зависимости. Не удалось получить экземпляр {}.", c.getSimpleName());
+            logger.fatal(INJECT_ERROR_MSG, c.getSimpleName());
             throw new RuntimeException();
         }
     }

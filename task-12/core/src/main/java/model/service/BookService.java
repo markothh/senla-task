@@ -2,7 +2,6 @@ package model.service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
-import model.annotations.Inject;
 import model.config.JPAConfig;
 import model.entity.Book;
 import model.repository.BookRepository;
@@ -20,6 +19,18 @@ public final class BookService {
     private static final Logger logger = LogManager.getLogger();
     private final EntityManager em;
     private final BookRepository bookRepository = new BookRepository(JPAConfig.getEntityManager());
+
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability";
+    private static final String GET_BY_NAME_ERROR_MSG = "Книга с названием %s не найдена";
+    private static final String GET_DESC_ERROR_MSG = "Невозможно получить описание не существующей книги";
+    private static final String ADD_TO_LIST_ERROR_MSG = "Не удалось добавить книгу в список: {}";
+    private static final String ORDER_CREATION_ERROR_MSG = "Книги, указанные в заказе, не существуют. Заказ не был создан.";
+    private static final String ADD_TO_STOCK_ERROR_MSG = "Не удалось добавить книгу на склад: {}";
+    private static final String ADD_TO_STOCK_SUCCESS_MSG = "Книга '{}' добавлена на склад";
+    private static final String REMOVE_FROM_STOCK_ERROR_MSG = "Не удалось списать книгу со склада: {}";
+    private static final String REMOVE_FROM_STOCK_SUCCESS_MSG = "Книга '{}' списана со склада";
+    private static final String CHECK_AVAILABILITY_ERROR_MSG = "Не удалось проверить наличие книги: {}";
 
     public BookService(EntityManager em) {
         this.em = em;
@@ -39,8 +50,7 @@ public final class BookService {
 
         Comparator<Book> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            logger.error("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability");
+            logger.error(SORT_ERROR_MSG);
             return List.of();
         }
 
@@ -56,14 +66,14 @@ public final class BookService {
     public Book getBookByName(String bookName) throws NoSuchElementException {
         return bookRepository.findByName(bookName)
                 .orElseThrow(() ->
-                        new NoSuchElementException(String.format("Книга с названием %s не найдена", bookName)));
+                        new NoSuchElementException(String.format(GET_BY_NAME_ERROR_MSG, bookName)));
     }
 
     public String getDescriptionByBookName(String bookName) {
         try {
             return getBookByName(bookName).getDescription();
         } catch (NoSuchElementException e) {
-            logger.error("Невозможно получить описание не существующей книги");
+            logger.error(GET_DESC_ERROR_MSG);
             return "";
         }
     }
@@ -74,12 +84,12 @@ public final class BookService {
             try {
                 result.add(getBookByName(name));
             } catch (NoSuchElementException e) {
-                logger.error("Не удалось добавить книгу в список: {}", e.getMessage());
+                logger.error(ADD_TO_LIST_ERROR_MSG, e.getMessage());
             }
         }
 
         if (result.isEmpty()) {
-            throw new NoSuchElementException("Книги, указанные в заказе, не существуют. Заказ не был создан.");
+            throw new NoSuchElementException(ORDER_CREATION_ERROR_MSG);
         }
         return result;
     }
@@ -95,18 +105,18 @@ public final class BookService {
                 book.setAvailable();
                 em.merge(book);
             } catch (NoSuchElementException e) {
-                logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
+                logger.error(ADD_TO_STOCK_ERROR_MSG, e.getMessage());
             }
 
             if (isRequestSatisfactionNeeded) {
                 requestService.satisfyAllRequestsByBookId(em, getBookByName(bookName).getId());
             }
-            logger.info("Книга '{}' добавлена на склад", bookName);
+            logger.info(ADD_TO_STOCK_SUCCESS_MSG, bookName);
 
             tx.commit();
         } catch (Exception e) {
             tx.rollback();
-            logger.error("Не удалось добавить книгу '{}' на склад: {}", bookName, e.getMessage());
+            logger.error(ADD_TO_LIST_ERROR_MSG, e.getMessage());
         }
     }
 
@@ -114,16 +124,16 @@ public final class BookService {
         try {
             getBookByName(bookName).setUnavailable();
         } catch (NoSuchElementException e) {
-            logger.error("Не удалось списать книгу со склада: {}", e.getMessage());
+            logger.error(REMOVE_FROM_STOCK_ERROR_MSG, e.getMessage());
         }
-        logger.info("Книга '{}' списана со склада", bookName);
+        logger.info(REMOVE_FROM_STOCK_SUCCESS_MSG, bookName);
     }
 
     public boolean isBookAvailable(String bookName) {
         try {
             return getBookByName(bookName).isAvailable();
         } catch (NoSuchElementException e) {
-            logger.error("Не удалось проверить наличие книги: {}", e.getMessage());
+            logger.error(CHECK_AVAILABILITY_ERROR_MSG, e.getMessage());
             return false;
         }
     }
