@@ -1,5 +1,7 @@
 package model.service.CSVHandler;
 
+import jakarta.persistence.EntityManager;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.enums.BookStatus;
 import model.repository.BookRepository;
@@ -18,7 +20,7 @@ import java.util.List;
 public final class BookCSVHandler implements ICSVHandler<Book> {
     private static final Logger logger = LogManager.getLogger();
     private static BookCSVHandler INSTANCE;
-    private final BookRepository bookRepository = BookRepository.getInstance();
+    private final BookRepository bookRepository = new BookRepository(JPAConfig.getEntityManager());
 
     private BookCSVHandler() { }
 

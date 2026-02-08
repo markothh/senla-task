@@ -18,11 +18,12 @@ import java.util.Optional;
 
 public final class RequestService {
     private static final Logger logger = LogManager.getLogger();
-    private static RequestService INSTANCE;
-    @Inject
-    private RequestRepository requestRepository;
-    @Inject
-    private BookService bookService;
+    private final EntityManager em;
+    private final RequestRepository requestRepository = new RequestRepository(JPAConfig.getEntityManager());
+
+    public RequestService(EntityManager em) {
+        this.em = em;
+    }
 
     public List<Request> getRequests() {
         return requestRepository.findAll();
@@ -55,30 +56,29 @@ public final class RequestService {
         Request request;
         if (optRequest.isPresent()) {
             request = optRequest.get();
-            requestRepository.increaseAmount(em, request.getId());
+            requestRepository.increaseAmount(request.getId());
         } else {
             request = new Request(book);
-            requestRepository.save(em, request);
+            requestRepository.save(request);
         }
     }
 
     public void createRequest(String bookName) {
+        BookService bookService = new BookService(em);
         if (bookService.isBookAvailable(bookName)) {
             logger.error("Невозможно создать заказ на книгу, которая есть в наличии.");
         }
 
         try {
             Book bookToRequest = bookService.getBookByName(bookName);
-            try (EntityManager em = JPAConfig.getEntityManager()) {
-                EntityTransaction tx = em.getTransaction();
-                try {
-                    tx.begin();
-                    createRequestIfNotAvailable(em, bookToRequest);
-                    tx.commit();
-                } catch (Exception e) {
-                    logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
-                    tx.rollback();
-                }
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                createRequestIfNotAvailable(em, bookToRequest);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+                tx.rollback();
             }
 
         } catch (NoSuchElementException e) {
@@ -87,7 +87,7 @@ public final class RequestService {
     }
 
     public void satisfyAllRequestsByBookId(EntityManager em, int bookId) {
-        requestRepository.deleteByBookId(em, bookId);
+        requestRepository.deleteByBookId(bookId);
     }
 
     public void exportRequests(String filePath) {
@@ -97,13 +97,4 @@ public final class RequestService {
     public void importRequests(String filePath) {
         requestRepository.importFromCSV(filePath);
     }
-
-    public static RequestService getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RequestService();
-        }
-        return INSTANCE;
-    }
-
-    private RequestService() { }
 }

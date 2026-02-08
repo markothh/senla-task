@@ -9,8 +9,6 @@ import model.repository.BookRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,11 +18,12 @@ import java.util.NoSuchElementException;
 
 public final class BookService {
     private static final Logger logger = LogManager.getLogger();
-    private static BookService INSTANCE;
-    @Inject
-    private BookRepository bookRepository;
-    @Inject
-    private RequestService requestService;
+    private final EntityManager em;
+    private final BookRepository bookRepository = new BookRepository(JPAConfig.getEntityManager());
+
+    public BookService(EntityManager em) {
+        this.em = em;
+    }
 
     public List<Book> getBooks() {
         return bookRepository.findAll();
@@ -86,29 +85,28 @@ public final class BookService {
     }
 
     public void addToStock(String bookName, boolean isRequestSatisfactionNeeded) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            EntityTransaction tx = em.getTransaction();
+        RequestService requestService = new RequestService(em);
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+
             try {
-                tx.begin();
-
-                try {
-                    Book book = getBookByName(bookName);
-                    book.setAvailable();
-                    em.merge(book);
-                } catch (NoSuchElementException e) {
-                    logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
-                }
-
-                if (isRequestSatisfactionNeeded) {
-                    requestService.satisfyAllRequestsByBookId(em, getBookByName(bookName).getId());
-                }
-                logger.info("Книга '{}' добавлена на склад", bookName);
-
-                tx.commit();
-            } catch (Exception e) {
-                tx.rollback();
-                logger.error("Не удалось добавить книгу '{}' на склад: {}", bookName, e.getMessage());
+                Book book = getBookByName(bookName);
+                book.setAvailable();
+                em.merge(book);
+            } catch (NoSuchElementException e) {
+                logger.error("Не удалось добавить книгу на склад: {}", e.getMessage());
             }
+
+            if (isRequestSatisfactionNeeded) {
+                requestService.satisfyAllRequestsByBookId(em, getBookByName(bookName).getId());
+            }
+            logger.info("Книга '{}' добавлена на склад", bookName);
+
+            tx.commit();
+        } catch (Exception e) {
+            tx.rollback();
+            logger.error("Не удалось добавить книгу '{}' на склад: {}", bookName, e.getMessage());
         }
     }
 
@@ -137,13 +135,4 @@ public final class BookService {
     public void importBooks(String filePath) {
         bookRepository.importFromCSV(filePath);
     }
-
-    public static BookService getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new BookService();
-        }
-        return INSTANCE;
-    }
-
-    private BookService() { }
 }

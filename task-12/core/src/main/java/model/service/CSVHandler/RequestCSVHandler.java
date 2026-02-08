@@ -1,9 +1,13 @@
 package model.service.CSVHandler;
 
+import jakarta.persistence.EntityManager;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.Request;
 import model.repository.BookRepository;
+import model.repository.OrderRepository;
 import model.repository.RequestRepository;
+import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,10 +24,14 @@ import java.util.NoSuchElementException;
 public final class RequestCSVHandler implements ICSVHandler<Request> {
     private static final Logger logger = LogManager.getLogger();
     private static RequestCSVHandler INSTANCE;
-    private final BookRepository bookRepository = BookRepository.getInstance();
-    private final RequestRepository requestRepository = RequestRepository.getInstance();
+    private final BookRepository bookRepository;
+    private final RequestRepository requestRepository;
 
-    private RequestCSVHandler() { }
+    private RequestCSVHandler() {
+        EntityManager em = JPAConfig.getEntityManager();
+        bookRepository = new BookRepository(em);
+        requestRepository = new RequestRepository(em);
+    }
 
     public static RequestCSVHandler getInstance() {
         if (INSTANCE == null) {

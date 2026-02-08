@@ -1,6 +1,6 @@
 package model.service;
 
-import model.annotations.Inject;
+import model.config.JPAConfig;
 import model.entity.User;
 import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
@@ -12,8 +12,7 @@ import java.util.Optional;
 public final class UserService {
     private static final Logger logger = LogManager.getLogger();
     private static UserService INSTANCE;
-    @Inject
-    private UserRepository userRepository;
+    private final UserRepository userRepository = new UserRepository(JPAConfig.getEntityManager());
 
     public Optional<User> getUserById(int userId) {
         return userRepository.findAll().stream()

@@ -1,7 +1,11 @@
 package model.service.CSVHandler;
 
+import jakarta.persistence.EntityManager;
+import model.config.JPAConfig;
 import model.entity.User;
 import model.enums.UserRole;
+import model.repository.BookRepository;
+import model.repository.OrderRepository;
 import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,7 +21,7 @@ import java.util.List;
 public final class UserCSVHandler implements ICSVHandler<User> {
     private static final Logger logger = LogManager.getLogger();
     private static UserCSVHandler INSTANCE;
-    private final UserRepository userRepository = UserRepository.getInstance();
+    private final UserRepository userRepository = new UserRepository(JPAConfig.getEntityManager());
 
     private UserCSVHandler() { }
 

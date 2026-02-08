@@ -27,12 +27,10 @@ public final class BookShop {
     private static final Logger logger = LogManager.getLogger();
     private static BookShop INSTANCE;
     public static Scanner SCANNER = new Scanner(System.in);
-    @Inject
-    private RequestService requestService;
+    private final RequestService requestService = new RequestService(JPAConfig.getEntityManager());
     @Inject
     private OrderService orderService;
-    @Inject
-    private BookService bookService;
+    private final BookService bookService = new BookService(JPAConfig.getEntityManager());
     @Inject
     private UserService userService;
     @Inject

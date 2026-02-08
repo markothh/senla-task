@@ -4,7 +4,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.TypedQuery;
 import model.config.JPAConfig;
-import model.entity.Order;
 import model.entity.Request;
 import model.service.CSVHandler.CSVHandlers;
 import org.apache.logging.log4j.LogManager;
@@ -15,42 +14,35 @@ import java.util.Optional;
 
 public class RequestRepository implements IRepository<Request> {
     private static final Logger logger = LogManager.getLogger();
-    private static RequestRepository INSTANCE;
+    private final EntityManager em;
 
-    public static RequestRepository getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RequestRepository();
-        }
-        return INSTANCE;
+    public RequestRepository(EntityManager em) {
+        this.em = em;
     }
 
     @Override
     public Optional<Request> findById(int id) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            Request request = em.find(Request.class, id);
-            if (request != null) {
-                logger.info("Запрос с id = {} получен", id);
-                return Optional.of(request);
-            } else {
-                logger.error("Не удалось получить данные запроса с id = {}", id);
-                return Optional.empty();
-            }
+        Request request = em.find(Request.class, id);
+        if (request != null) {
+            logger.info("Запрос с id = {} получен", id);
+            return Optional.of(request);
+        } else {
+            logger.error("Не удалось получить данные запроса с id = {}", id);
+            return Optional.empty();
         }
     }
 
     @Override
     public List<Request> findAll() {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            TypedQuery<Request> query = em.createQuery(
-                    "select r from Request r " +
-                       "join fetch r.book", Request.class);
-            logger.info("Список запросов успешно получен.");
-            return query.getResultList();
-        }
+        TypedQuery<Request> query = em.createQuery(
+                "select r from Request r " +
+                        "join fetch r.book", Request.class);
+        logger.info("Список запросов успешно получен.");
+        return query.getResultList();
     }
 
     @Override
-    public void save(EntityManager em, Request obj) {
+    public void save(Request obj) {
         if (obj.getId() == null) {
             em.persist(obj);
         } else {
@@ -60,7 +52,7 @@ public class RequestRepository implements IRepository<Request> {
     }
 
     @Override
-    public void deleteById(EntityManager em, int id) {
+    public void deleteById(int id) {
         Request request = em.find(Request.class, id);
         if (request != null) {
             em.remove(request);
@@ -71,22 +63,20 @@ public class RequestRepository implements IRepository<Request> {
     }
 
     public Optional<Request> findByBookId(int bookId) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
-            query.setParameter("bookId", bookId);
-            try {
-                Request request = query.getSingleResult();
+        TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
+        query.setParameter("bookId", bookId);
+        try {
+            Request request = query.getSingleResult();
 
-                logger.info("Успешно получены запросы на книгу с id = {}", bookId);
-                return Optional.of(request);
-            } catch (Exception e) {
-                logger.error("Запросы на книгу с id = {} не найдены", bookId);
-                return Optional.empty();
-            }
+            logger.info("Успешно получены запросы на книгу с id = {}", bookId);
+            return Optional.of(request);
+        } catch (Exception e) {
+            logger.error("Запросы на книгу с id = {} не найдены", bookId);
+            return Optional.empty();
         }
     }
 
-    public void deleteByBookId(EntityManager em, int bookId) {
+    public void deleteByBookId(int bookId) {
         TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
         query.setParameter("bookId", bookId);
         Request request = query.getSingleResult();
@@ -98,7 +88,7 @@ public class RequestRepository implements IRepository<Request> {
         logger.info("Запрос на книгу с id = {} успешно удален", bookId);
     }
 
-    public void increaseAmount(EntityManager em, int id) {
+    public void increaseAmount(int id) {
         findById(id).ifPresentOrElse(
                 Request::increaseAmount,
                 () -> {
@@ -113,22 +103,18 @@ public class RequestRepository implements IRepository<Request> {
     }
 
     public void importFromCSV(String filePath) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
-                EntityTransaction tx = em.getTransaction();
-                try {
-                    tx.begin();
-                    save(em, request);
-                    tx.commit();
-                } catch (Exception e) {
-                    logger.error("Не удалось импортировать запрос с id = {}: {}", request.getId(), e.getMessage());
-                    tx.rollback();
-                }
+        for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                save(request);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error("Не удалось импортировать запрос с id = {}: {}", request.getId(), e.getMessage());
+                tx.rollback();
             }
         }
 
         logger.info("Запросы успешно импортированы из файла '{}'", filePath);
     }
-
-    private RequestRepository() { }
 }

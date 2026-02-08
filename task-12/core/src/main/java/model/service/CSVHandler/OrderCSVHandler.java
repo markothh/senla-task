@@ -1,5 +1,7 @@
 package model.service.CSVHandler;
 
+import jakarta.persistence.EntityManager;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
 import model.entity.Order;
@@ -30,11 +32,16 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
     private static final Logger logger = LogManager.getLogger();
     private static OrderCSVHandler INSTANCE;
 
-    private final BookRepository bookRepository = BookRepository.getInstance();
-    private final UserRepository userRepository = UserRepository.getInstance();
-    private final OrderRepository orderRepository = OrderRepository.getInstance();
+    private final BookRepository bookRepository;
+    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
-    private OrderCSVHandler() { }
+    private OrderCSVHandler() {
+        EntityManager em = JPAConfig.getEntityManager();
+        bookRepository = new BookRepository(em);
+        userRepository = new UserRepository(em);
+        orderRepository = new OrderRepository(em);
+    }
 
     public static ICSVHandler<Order> getInstance() {
         if (INSTANCE == null) {

@@ -13,7 +13,6 @@ import model.repository.OrderRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,12 +22,7 @@ import java.util.NoSuchElementException;
 public final class OrderService {
     private static final Logger logger = LogManager.getLogger();
     private static OrderService INSTANCE;
-    @Inject
-    private OrderRepository orderRepository;
-    @Inject
-    private RequestService requestService;
-    @Inject
-    private BookService bookService;
+    private final OrderRepository orderRepository = new OrderRepository(JPAConfig.getEntityManager());
 
     public List<Order> getOrders() {
         return orderRepository.findAll();
@@ -70,15 +64,17 @@ public final class OrderService {
     }
 
     public void createOrder(UserProfile user, List<String> bookNames) {
-        List<Book> books;
-        try {
-            books = bookService.formIdListFromNames(bookNames);
-        } catch (NoSuchElementException e) {
-            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
-            return;
-        }
-
         try (EntityManager em = JPAConfig.getEntityManager()) {
+            BookService bookService = new BookService(em);
+            RequestService requestService = new RequestService(em);
+            List<Book> books;
+            try {
+                books = bookService.formIdListFromNames(bookNames);
+            } catch (NoSuchElementException e) {
+                logger.error("Не удалось сформировать заказ: {}", e.getMessage());
+                return;
+            }
+
             EntityTransaction tx = em.getTransaction();
 
             try {
@@ -91,7 +87,7 @@ public final class OrderService {
                     order.addBook(book);
                 }
 
-                orderRepository.save(em, order);
+                orderRepository.save(order);
             } catch (Exception e) {
                 logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
             }

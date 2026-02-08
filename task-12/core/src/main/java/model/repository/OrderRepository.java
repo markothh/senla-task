@@ -15,43 +15,36 @@ import java.util.Optional;
 
 public class OrderRepository implements IRepository<Order> {
     private static final Logger logger = LogManager.getLogger();
-    private static OrderRepository INSTANCE;
+    private final EntityManager em;
 
-    public static OrderRepository getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new OrderRepository();
-        }
-        return INSTANCE;
+    public OrderRepository(EntityManager em) {
+        this.em = em;
     }
 
     @Override
     public Optional<Order> findById(int id) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            Order order = em.find(Order.class, id);
-            if (order != null) {
-                logger.info("Заказ с id = {} получен", id);
-                return Optional.of(order);
-            } else {
-                logger.error("Не удалось получить данные заказа с id = {}", id);
-                return Optional.empty();
-            }
+        Order order = em.find(Order.class, id);
+        if (order != null) {
+            logger.info("Заказ с id = {} получен", id);
+            return Optional.of(order);
+        } else {
+            logger.error("Не удалось получить данные заказа с id = {}", id);
+            return Optional.empty();
         }
     }
 
     @Override
     public List<Order> findAll() {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            TypedQuery<Order> query = em.createQuery(
-                    "select o from Order o " +
-                       "join fetch o.user " +
-                       "join fetch o.books", Order.class);
-            logger.info("Список заказов успешно получен.");
-            return query.getResultList();
-        }
+        TypedQuery<Order> query = em.createQuery(
+                "select o from Order o " +
+                        "join fetch o.user " +
+                        "join fetch o.books", Order.class);
+        logger.info("Список заказов успешно получен.");
+        return query.getResultList();
     }
 
     @Override
-    public void save(EntityManager em, Order obj) {
+    public void save(Order obj) {
         if (obj.getId() == null) {
             em.persist(obj);
         } else {
@@ -61,7 +54,7 @@ public class OrderRepository implements IRepository<Order> {
     }
 
     @Override
-    public void deleteById(EntityManager em, int id) {
+    public void deleteById(int id) {
         Order order = em.find(Order.class, id);
         if (order != null) {
             em.remove(order);
@@ -78,24 +71,22 @@ public class OrderRepository implements IRepository<Order> {
     }
 
     public void setOrderStatus (int id, OrderStatus status) throws IllegalStateException {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            EntityTransaction tx = em.getTransaction();
-            try {
-                tx.begin();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
 
-                findById(id).ifPresentOrElse(
-                        order -> order.setStatus(status),
-                        () -> {
-                            logger.error("Не удалось изменить статус заказа с id = {}: заказ не найден", id);
-                        }
-                );
+            findById(id).ifPresentOrElse(
+                    order -> order.setStatus(status),
+                    () -> {
+                        logger.error("Не удалось изменить статус заказа с id = {}: заказ не найден", id);
+                    }
+            );
 
-                tx.commit();
-                logger.info("Статус заказа с id = {} успешно изменена", id);
-            } catch (Exception e) {
-                tx.rollback();
-                throw e;
-            }
+            tx.commit();
+            logger.info("Статус заказа с id = {} успешно изменена", id);
+        } catch (Exception e) {
+            tx.rollback();
+            throw e;
         }
     }
 
@@ -104,22 +95,18 @@ public class OrderRepository implements IRepository<Order> {
     }
 
     public void importFromCSV(String filePath) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
-                EntityTransaction tx = em.getTransaction();
-                try {
-                    tx.begin();
-                    save(em, order);
-                    tx.commit();
-                } catch (Exception e) {
-                    logger.error("Не удалось импортировать заказ с id = {}: {}", order.getId(), e.getMessage());
-                    tx.rollback();
-                }
+        for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                save(order);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error("Не удалось импортировать заказ с id = {}: {}", order.getId(), e.getMessage());
+                tx.rollback();
             }
         }
 
         logger.info("Заказы успешно импортированы из файла '{}'", filePath);
     }
-
-    private OrderRepository() { }
 }
