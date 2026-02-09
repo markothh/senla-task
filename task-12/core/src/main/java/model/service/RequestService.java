@@ -56,7 +56,7 @@ public final class RequestService {
                 .toList();
     }
 
-    public void createRequestIfNotAvailable(EntityManager em, Book book) {
+    public void createRequestIfNotAvailable(Book book) {
         Optional<Request> optRequest = requestRepository.findByBookId(book.getId());
         Request request;
         if (optRequest.isPresent()) {
@@ -79,7 +79,7 @@ public final class RequestService {
             EntityTransaction tx = em.getTransaction();
             try {
                 tx.begin();
-                createRequestIfNotAvailable(em, bookToRequest);
+                createRequestIfNotAvailable(bookToRequest);
                 tx.commit();
                 logger.info(REQUEST_CREATION_SUCCESS_MSG, bookName);
             } catch (Exception e) {
@@ -92,7 +92,7 @@ public final class RequestService {
         }
     }
 
-    public void satisfyAllRequestsByBookId(EntityManager em, int bookId) {
+    public void satisfyAllRequestsByBookId(int bookId) {
         requestRepository.deleteByBookId(bookId);
     }
 

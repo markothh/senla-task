@@ -109,7 +109,7 @@ public final class BookService {
             }
 
             if (isRequestSatisfactionNeeded) {
-                requestService.satisfyAllRequestsByBookId(em, getBookByName(bookName).getId());
+                requestService.satisfyAllRequestsByBookId(getBookByName(bookName).getId());
             }
             logger.info(ADD_TO_STOCK_SUCCESS_MSG, bookName);
 

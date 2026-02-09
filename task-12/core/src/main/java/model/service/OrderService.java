@@ -87,7 +87,7 @@ public final class OrderService {
                 Order order = new Order(em.getReference(User.class, user.getId()));
                 for (Book book : books) {
                     if (!book.isAvailable()) {
-                        requestService.createRequestIfNotAvailable(em, book);
+                        requestService.createRequestIfNotAvailable(book);
                     }
 
                     order.addBook(book);
