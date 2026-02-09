@@ -28,7 +28,7 @@ public class BookCSVHandler implements ICSVHandler<Book> {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;description;author;genre;price;status;publishYear;stockDate\n");
 
-            for (Book book : bookRepository.getBooks()) {
+            for (Book book : bookRepository.findAll()) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s%n",
                         book.getId(),
                         book.getName(),

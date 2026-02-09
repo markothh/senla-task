@@ -1,5 +1,6 @@
 package Model.Config;
 import Model.Annotations.ConfigProperty;
+
 public class AppConfig {
     private static AppConfig INSTANCE;
     @ConfigProperty(propertyName = "staleMonths")

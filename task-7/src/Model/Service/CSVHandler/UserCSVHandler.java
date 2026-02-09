@@ -26,7 +26,7 @@ public class UserCSVHandler implements ICSVHandler<User>{
     public void exportToCSV(String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;password;role\n");
-            for (User user : userRepository.getUsers()) {
+            for (User user : userRepository.findAll()) {
                 writer.write(String.format("%s;%s;%s;%s%n",
                         user.getId(),
                         user.getName(),

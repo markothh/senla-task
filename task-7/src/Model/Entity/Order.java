@@ -1,37 +1,32 @@
 package Model.Entity;
 
+import Model.Entity.DTO.UserProfile;
 import Model.Status.IOrderStatus;
 import Model.Status.NewOrderStatus;
 import Model.Enum.OrderStatus;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Order implements Serializable {
-    private static int nextId = 1;
-
+public class Order {
     private int id;
-    private final User user;
+    private final UserProfile user;
     private List<Book> books = new ArrayList<>();
     private final LocalDate createdAt;
     private LocalDate completedAt;
     private IOrderStatus status;
 
 
-    public Order(User user) {
-        this.id = Order.nextId++;
+    public Order(UserProfile user) {
         this.createdAt = LocalDate.now();
         this.status = new NewOrderStatus();
 
         this.user = user;
     }
 
-    public Order(int id, User user, List<Book> books, LocalDate createdAt, LocalDate completedAt, IOrderStatus status) {
+    public Order(int id, UserProfile user, List<Book> books, LocalDate createdAt, LocalDate completedAt, IOrderStatus status) {
         this.id = id;
-        if (id > Order.nextId)
-            Order.nextId = id + 1;
         this.user = user;
         this.books = books;
         this.createdAt = createdAt;
@@ -65,7 +60,7 @@ public class Order implements Serializable {
         return books;
     }
 
-    public User getUser() {
+    public UserProfile getUser() {
         return user;
     }
 

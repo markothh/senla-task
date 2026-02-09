@@ -14,7 +14,7 @@ public class RequestService {
     private RequestRepository requestRepository;
 
     public List<Request> getRequests() {
-        return requestRepository.getRequests();
+        return requestRepository.findAll();
     }
 
     public List<Request> getSortedRequests(String sortBy, boolean isReversed) {
@@ -35,17 +35,17 @@ public class RequestService {
             comparator = comparator.reversed();
         }
 
-        return requestRepository.getRequests().stream()
+        return requestRepository.findAll().stream()
                 .sorted(comparator)
                 .toList();
     }
 
     public Request createRequest(Book book) {
-        Optional<Request> optRequest = requestRepository.getRequestByBook(book);
+        Optional<Request> optRequest = requestRepository.findByBookId(book.getId());
         Request request;
         if (optRequest.isPresent()) {
             request = optRequest.get();
-            request.increaseAmount();
+            requestRepository.increaseAmount(request.getId());
         }
         else {
             request = new Request(book);
@@ -53,15 +53,15 @@ public class RequestService {
         }
 
         System.out.printf("%nСоздан запрос: %s", request);
-        System.out.printf("%nАктивные запросы:%n%s", requestRepository.getRequests());
+        System.out.printf("%nАктивные запросы:%n%s", requestRepository.findAll());
         return request;
     }
 
-    public void satisfyAllRequestsByBook(Book book) {
-        requestRepository.deleteRequestsByBook(book);
+    public void satisfyAllRequestsByBookId(int bookId) {
+        requestRepository.deleteByBookId(bookId);
 
-        System.out.printf("%nУдалены запросы на книгу с id: %d", book.getId());
-        System.out.printf("%nАктивные запросы:%n%s", requestRepository.getRequests());
+        System.out.printf("%nУдалены запросы на книгу с id: %d", bookId);
+        System.out.printf("%nАктивные запросы:%n%s", requestRepository.findAll());
     }
 
     public void exportRequests(String filePath) {
@@ -69,7 +69,7 @@ public class RequestService {
     }
 
     public void importRequests(String filePath) {
-        requestRepository.importToCSV(filePath);
+        requestRepository.importFromCSV(filePath);
 
     }
 

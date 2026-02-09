@@ -1,18 +1,14 @@
 package Model.Entity;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 
-public class Request implements Serializable {
-    private static int nextId = 1;
-
+public class Request {
     private int id;
     private final LocalDate createdAt;
     private final Book book;
-    private int quantity;
+    private final int quantity;
 
     public Request(Book book) {
-        this.id = Request.nextId++;
         this.createdAt = LocalDate.now();
         this.quantity = 1;
 
@@ -21,8 +17,6 @@ public class Request implements Serializable {
 
     public Request(int id, LocalDate createdAt, Book book, int quantity) {
         this.id = id;
-        if (id > Request.nextId)
-            Request.nextId = id + 1;
         this.createdAt = createdAt;
         this.book = book;
         this.quantity = quantity;
@@ -56,9 +50,5 @@ public class Request implements Serializable {
 
     public LocalDate getCreatedAt() {
         return createdAt;
-    }
-
-    public void increaseAmount() {
-        quantity++;
     }
 }

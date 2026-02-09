@@ -1,15 +1,18 @@
 package Model.Repository;
 
-import Model.Entity.Book;
+import Model.Config.DBConnection;
 import Model.Entity.Request;
 import Model.Service.CSVHandler.CSVHandlers;
+import Model.Utils.EntityParser;
 
-import java.io.Serial;
 import java.io.Serializable;
+import java.sql.Date;
+import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
+import java.util.logging.Logger;
 
-public class RequestRepository implements Serializable {
-    private List<Request> requests = new ArrayList<>();
+public class RequestRepository implements Serializable, IRepository<Request> {
     private static RequestRepository INSTANCE;
 
     public static RequestRepository getInstance() {
@@ -19,52 +22,189 @@ public class RequestRepository implements Serializable {
         return INSTANCE;
     }
 
-    public Optional<Request> getRequestByBook(Book book) {
-        return requests.stream()
-                .filter(r -> r.getBook() == book)
-                .findFirst();
+    public Optional<Request> findByBookId(int bookId) {
+        try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
+                "r.id as request_id, " +
+                "r.created_at as request_created_at, " +
+                "r.quantity as request_quantity, " +
+                "b.id as book_id, " +
+                "b.name as book_name, " +
+                "b.description as book_description, " +
+                "b.author as book_author, " +
+                "b.genre as book_genre, " +
+                "b.price as book_price, " +
+                "b.status as book_status, " +
+                "b.publish_year as book_publish_year, " +
+                "b.stock_date as book_stock_date " +
+                "from requests r " +
+                "join books b on b.id = r.book_id " +
+                "where b.id = ?")) {
+            stmt.setInt(1, bookId);
+            try (var rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(EntityParser.parseRequest(rs));
+                }
+                else {
+                    String errMessage = String.format("Запросы на книгу с id = %d не найдены", bookId);
+                    Logger.getGlobal().info(errMessage);
+                    return Optional.empty();
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public List<Request> getRequests() {
+    @Override
+    public List<Request> findAll() {
+        List<Request> requests = new ArrayList<>();
+        try (var stmt = DBConnection.getInstance().getConnection().createStatement()) {
+            try (var rs = stmt.executeQuery("select " +
+                    "r.id as request_id, " +
+                    "r.created_at as request_created_at, " +
+                    "r.quantity as request_quantity, " +
+                    "b.id as book_id, " +
+                    "b.name as book_name, " +
+                    "b.description as book_description, " +
+                    "b.author as book_author, " +
+                    "b.genre as book_genre, " +
+                    "b.price as book_price, " +
+                    "b.status as book_status, " +
+                    "b.publish_year as book_publish_year, " +
+                    "b.stock_date as book_stock_date " +
+                    "from requests r " +
+                    "join books b on b.id = r.book_id ")) {
+                while (rs.next()) {
+                    requests.add(EntityParser.parseRequest(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
         return requests;
     }
 
-    public void setData(List<Request> requests) {
-        this.requests = requests;
+    @Override
+    public Request findById(int requestId) {
+        try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
+                "r.id as request_id, " +
+                "r.created_at as request_created_at, " +
+                "r.quantity as request_quantity, " +
+                "b.id as book_id, " +
+                "b.name as book_name, " +
+                "b.description as book_description, " +
+                "b.author as book_author, " +
+                "b.genre as book_genre, " +
+                "b.price as book_price, " +
+                "b.status as book_status, " +
+                "b.publish_year as book_publish_year, " +
+                "b.stock_date as book_stock_date " +
+                "from requests r " +
+                "join books b on b.id = r.book_id " +
+                "where r.id = ?")) {
+            stmt.setInt(1, requestId);
+            try (var rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return EntityParser.parseRequest(rs);
+                }
+                else {
+                    String errMessage = String.format("Не удалось получить данные запроса с id = %d", requestId);
+                    Logger.getGlobal().severe(errMessage);
+                    throw new RuntimeException(errMessage);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void deleteRequestsByBook(Book book) {
-        requests.removeIf(request -> request.getBook() == book);
+    public void deleteByBookId(int bookId) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("delete from requests " +
+                        "where book_id = ?")) {
+            stmt.setInt(1, bookId);
+
+            stmt.execute();
+        } catch (SQLException e) {
+            String errMessage = String.format("Не удалось удалить запросы на книгу с id = %d", bookId);
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(errMessage);
+        }
     }
 
+    @Override
     public void save(Request request) {
-        requests.add(request);
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("insert into requests (" +
+                        "created_at, " +
+                        "book_id, " +
+                        "quantity)" +
+                        "values (?, ?, ?)")) {
+            LocalDate createdAt = request.getCreatedAt();
+            if (createdAt != null) {
+                stmt.setDate(1, Date.valueOf(createdAt));
+            }
+            stmt.setInt(2, request.getBook().getId());
+            stmt.setInt(3, request.getQuantity());
+
+            stmt.execute();
+        } catch (SQLException e) {
+            String errMessage = String.format("Не удалось добавить запрос на книгу '%s'", request.getBook().getName());
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(errMessage);
+        }
+    }
+
+    public void increaseAmount(int requestId) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("update requests set " +
+                        "quantity = requests.quantity + 1 " +
+                        "where id = ?")) {
+            stmt.setInt(1, requestId);
+
+            stmt.execute();
+        } catch (SQLException e) {
+            String errMessage = String.format("Не удалось увеличить количество запрашиваемых книг в запросе с id = %d", requestId);
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(errMessage);
+        }
     }
 
     public void exportToCSV(String filePath) {
         CSVHandlers.requests().exportToCSV(filePath);
     }
 
-    public void importToCSV(String filePath) {
-        Map<Integer, Request> merged = new HashMap<>();
-        for (Request request : requests) {
-            merged.put(request.getId(), request);
-        }
+    public void importFromCSV(String filePath) {
+        try (var stmt = DBConnection.getInstance().getConnection()
+                .prepareStatement("insert into requests (" +
+                        "id, " +
+                        "created_at, " +
+                        "book_id, " +
+                        "quantity)" +
+                        "values (?, ?, ?, ?)" +
+                        "on conflict (id)" +
+                        "do update set" +
+                        "created_at = EXCLUDED.created_at, " +
+                        "book_id = EXCLUDED.book_id, " +
+                        "quantity = EXCLUDED.quantity")) {
+            for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
+                stmt.setInt(1, request.getId());
+                LocalDate createdAt = request.getCreatedAt();
+                if (createdAt != null) {
+                    stmt.setDate(2, Date.valueOf(createdAt));
+                }
+                stmt.setInt(3, request.getBook().getId());
+                stmt.setInt(4, request.getQuantity());
 
-        for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
-            merged.put(request.getId(), request);
-        }
-        requests = new ArrayList<>(merged.values());
-    }
+                stmt.addBatch();
+            }
 
-    @Serial
-    private Object readResolve() {
-        if (INSTANCE == null) {
-            INSTANCE = this;
+            stmt.executeBatch();
+        } catch (SQLException e) {
+            String errMessage = "Не удалось импортировать заявки";
+            Logger.getGlobal().severe(errMessage);
+            throw new RuntimeException(errMessage);
         }
-        else {
-            INSTANCE.requests = this.requests;
-        }
-        return INSTANCE;
     }
 }
