@@ -1,6 +1,4 @@
-#игнорирование .class файлов
 *.class
 *.iml
-*.xml
 *.gitignore
 *.log
