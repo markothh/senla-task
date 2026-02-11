@@ -1,38 +1,45 @@
 package model.repository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
-import model.config.JPAConfig;
+import jakarta.transaction.Transactional;
 import model.entity.Request;
-import model.service.CSVHandler.CSVHandlers;
+import model.service.CSVHandler.RequestCSVHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class RequestRepository implements IRepository<Request> {
     private static final Logger logger = LogManager.getLogger();
-    private final EntityManager em;
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Lazy
+    private final RequestCSVHandler csvHandler;
 
     private static final String GET_BY_ID_SUCCESS_MSG = "Запрос с id = {} получен";
     private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные запроса с id = {}";
     private static final String GET_BY_BOOK_ID_SUCCESS_MSG = "Успешно получены запросы на книгу с id = {}";
     private static final String GET_BY_BOOK_ID_ERROR_MSG = "Запросы на книгу с id = {} не найдены";
     private static final String GET_ALL_SUCCESS_MSG = "Список запросов успешно получен.";
-    private static final String ADD_SUCCESS_MSG = "Запрос '{}' успешно добавлена";
+    private static final String ADD_SUCCESS_MSG = "Запрос на книгу '{}' успешно добавлен";
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Запрос на книгу с id = {} успешно удален";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные запроса на книгу с id = {}";
     private static final String DELETE_BY_BOOK_ID_SUCCESS_MSG = "Запрос с id = {} успешно удален";
     private static final String DELETE_BY_BOOK_ID_ERROR_MSG = "Не удалось получить данные запроса с id = {}";
     private static final String IMPORT_SUCCESS_MSG = "Запросы успешно импортированы из файла '{}'";
-    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать запрос с id = {}: {}";
-    private static final String INCREASE_AMOUNT_SUCCESS_MSG = "Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: запрос не найден";
-    private static final String INCREASE_AMOUNT_ERROR_MSG = "Количество запрашиваемых книг в запросе с id = {} успешно увеличено";
+    private static final String INCREASE_AMOUNT_ERROR_MSG = "Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: запрос не найден";
+    private static final String INCREASE_AMOUNT_SUCCESS_MSG = "Количество запрашиваемых книг в запросе с id = {} успешно увеличено";
 
-    public RequestRepository(EntityManager em) {
-        this.em = em;
+    public RequestRepository(RequestCSVHandler csvHandler) {
+        this.csvHandler = csvHandler;
     }
 
     @Override
@@ -63,7 +70,7 @@ public class RequestRepository implements IRepository<Request> {
         } else {
             em.merge(obj);
         }
-        logger.info(ADD_SUCCESS_MSG);
+        logger.info(ADD_SUCCESS_MSG, obj.getBook().getName());
     }
 
     @Override
@@ -91,6 +98,7 @@ public class RequestRepository implements IRepository<Request> {
         }
     }
 
+    @Transactional
     public void deleteByBookId(int bookId) {
         TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
         query.setParameter("bookId", bookId);
@@ -103,6 +111,7 @@ public class RequestRepository implements IRepository<Request> {
         logger.info(DELETE_BY_BOOK_ID_SUCCESS_MSG, bookId);
     }
 
+    @Transactional
     public void increaseAmount(int id) {
         findById(id).ifPresentOrElse(
                 Request::increaseAmount,
@@ -114,20 +123,27 @@ public class RequestRepository implements IRepository<Request> {
     }
 
     public void exportToCSV(String filePath) {
-        CSVHandlers.requests().exportToCSV(filePath);
+        csvHandler.exportToCSV(findAll(), filePath);
     }
 
     public void importFromCSV(String filePath) {
-        for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
-            EntityTransaction tx = em.getTransaction();
-            try {
-                tx.begin();
-                save(request);
-                tx.commit();
-            } catch (Exception e) {
-                logger.error(IMPORT_ERROR_MSG, request.getId(), e.getMessage());
-                tx.rollback();
-            }
+        for (Request request : csvHandler.importFromCSV(filePath)) {
+            em.createNativeQuery("insert into requests (" +
+                    "id, " +
+                    "created_at, " +
+                    "book_id, " +
+                    "quantity)" +
+                    "values (:id, :created_at, :book_id, :quantity)" +
+                    "on conflict (id) " +
+                    "do update set " +
+                    "created_at = EXCLUDED.created_at, " +
+                    "book_id = EXCLUDED.book_id, " +
+                    "quantity = EXCLUDED.quantity")
+                    .setParameter("id", request.getId())
+                    .setParameter("created_at", request.getCreatedAt())
+                    .setParameter("book_id", request.getBook().getId())
+                    .setParameter("quantity", request.getQuantity())
+                    .executeUpdate();
         }
 
         logger.info(IMPORT_SUCCESS_MSG, filePath);

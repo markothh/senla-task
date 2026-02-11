@@ -1,9 +1,10 @@
 package controller;
 
-import model.config.AppState;
+import org.springframework.stereotype.Component;
 import view.menu.Menu;
 import view.MenuItem;
 
+@Component
 public class Navigator {
     private Menu currentMenu;
 
@@ -20,7 +21,6 @@ public class Navigator {
 
     public void navigate(Integer index) {
         if (index == 0) {
-            AppState.saveState();
             System.exit(0);
         } else if (index == -1) {
             if (currentMenu.getPreviousMenu() != null) {

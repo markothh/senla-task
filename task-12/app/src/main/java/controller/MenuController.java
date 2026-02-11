@@ -1,22 +1,19 @@
 package controller;
 
 import model.BookShop;
+import org.springframework.stereotype.Controller;
 import view.Builder;
 
 import java.util.InputMismatchException;
 
-public final class MenuController {
-    private static MenuController INSTANCE;
-    private final Builder builder = new Builder();
-    private final Navigator navigator = new Navigator();
+@Controller
+public class MenuController {
+    private final Builder builder;
+    private final Navigator navigator;
 
-    private MenuController() { }
-
-    public static MenuController getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new MenuController();
-        }
-        return INSTANCE;
+    private MenuController(Builder builder, Navigator navigator) {
+        this.builder = builder;
+        this.navigator = navigator;
     }
 
     public void run() {

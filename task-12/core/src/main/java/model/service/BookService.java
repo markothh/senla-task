@@ -1,12 +1,15 @@
 package model.service;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
-import model.config.JPAConfig;
+import jakarta.persistence.PersistenceContext;
+import jakarta.transaction.Transactional;
 import model.entity.Book;
 import model.repository.BookRepository;
+import model.repository.RequestRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,10 +18,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-public final class BookService {
+@Service
+public class BookService {
     private static final Logger logger = LogManager.getLogger();
-    private final EntityManager em;
-    private final BookRepository bookRepository = new BookRepository(JPAConfig.getEntityManager());
+    private final BookRepository bookRepository;
+    private final RequestRepository requestRepository;
+    @Value("${autoCompleteRequests}")
+    private boolean autoCompleteRequests;
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
             "Возможные значения параметра сортировки: bookName, price, publishDate, stockAvailability";
@@ -32,8 +41,9 @@ public final class BookService {
     private static final String REMOVE_FROM_STOCK_SUCCESS_MSG = "Книга '{}' списана со склада";
     private static final String CHECK_AVAILABILITY_ERROR_MSG = "Не удалось проверить наличие книги: {}";
 
-    public BookService(EntityManager em) {
-        this.em = em;
+    public BookService(BookRepository bookRepository, RequestRepository requestRepository) {
+        this.bookRepository = bookRepository;
+        this.requestRepository = requestRepository;
     }
 
     public List<Book> getBooks() {
@@ -94,35 +104,29 @@ public final class BookService {
         return result;
     }
 
-    public void addToStock(String bookName, boolean isRequestSatisfactionNeeded) {
-        RequestService requestService = new RequestService(em);
-        EntityTransaction tx = em.getTransaction();
+    @Transactional
+    public void addToStock(String bookName) {
+        Book book;
         try {
-            tx.begin();
-
-            try {
-                Book book = getBookByName(bookName);
-                book.setAvailable();
-                em.merge(book);
-            } catch (NoSuchElementException e) {
-                logger.error(ADD_TO_STOCK_ERROR_MSG, e.getMessage());
-            }
-
-            if (isRequestSatisfactionNeeded) {
-                requestService.satisfyAllRequestsByBookId(getBookByName(bookName).getId());
-            }
-            logger.info(ADD_TO_STOCK_SUCCESS_MSG, bookName);
-
-            tx.commit();
-        } catch (Exception e) {
-            tx.rollback();
-            logger.error(ADD_TO_LIST_ERROR_MSG, e.getMessage());
+            book = getBookByName(bookName);
+            book.setAvailable();
+            em.merge(book);
+        } catch (NoSuchElementException e) {
+            logger.error(ADD_TO_STOCK_ERROR_MSG, e.getMessage());
+            return;
         }
+
+        if (autoCompleteRequests) {
+            requestRepository.deleteByBookId(book.getId());
+        }
+        logger.info(ADD_TO_STOCK_SUCCESS_MSG, bookName);
     }
 
     public void removeFromStock(String bookName) {
         try {
-            getBookByName(bookName).setUnavailable();
+            Book book = getBookByName(bookName);
+            book.setAvailable();
+            em.merge(book);
         } catch (NoSuchElementException e) {
             logger.error(REMOVE_FROM_STOCK_ERROR_MSG, e.getMessage());
         }
@@ -142,6 +146,7 @@ public final class BookService {
         bookRepository.exportToCSV(filePath);
     }
 
+    @Transactional
     public void importBooks(String filePath) {
         bookRepository.importFromCSV(filePath);
     }

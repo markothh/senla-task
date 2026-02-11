@@ -1,34 +1,45 @@
 package model.repository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import jakarta.transaction.Transactional;
 import model.entity.DTO.UserProfile;
 import model.entity.User;
-import model.service.CSVHandler.CSVHandlers;
+import model.service.CSVHandler.UserCSVHandler;
+import model.service.UserContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class UserRepository implements IRepository<User> {
     private static final Logger logger = LogManager.getLogger();
-    private final EntityManager em;
+    private final UserContext userContext;
+
+    @Lazy
+    private final UserCSVHandler csvHandler;
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String GET_BY_ID_SUCCESS_MSG = "Пользователь с id = {} получен";
     private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные пользователя с id = {}";
     private static final String GET_BY_NAME_SUCCESS_MSG = "Пользователь с name = {} получен";
     private static final String GET_BY_NAME_ERROR_MSG = "Не удалось получить данные пользователя с name = {}";
     private static final String GET_ALL_SUCCESS_MSG = "Список пользователей успешно получен.";
-    private static final String ADD_SUCCESS_MSG = "Пользователь '{}' успешно добавлена";
+    private static final String ADD_SUCCESS_MSG = "Пользователь '{}' успешно добавлен";
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Пользователь с id = {} успешно удален";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные пользователя с id = {}";
     private static final String IMPORT_SUCCESS_MSG = "Пользователи успешно импортированы из файла '{}'";
-    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать пользователя с id = {}: {}";
 
-    public UserRepository(EntityManager em) {
-        this.em = em;
+    public UserRepository(UserContext userContext, UserCSVHandler csvHandler) {
+        this.userContext = userContext;
+        this.csvHandler = csvHandler;
     }
 
     @Override
@@ -51,16 +62,18 @@ public class UserRepository implements IRepository<User> {
     }
 
     @Override
+    @Transactional
     public void save(User obj) {
         if (obj.getId() == null) {
             em.persist(obj);
         } else {
             em.merge(obj);
         }
-        logger.info(ADD_SUCCESS_MSG);
+        logger.info(ADD_SUCCESS_MSG, obj.getName());
     }
 
     @Override
+    @Transactional
     public void deleteById(int id) {
         User user = em.find(User.class, id);
         if (user != null) {
@@ -82,6 +95,10 @@ public class UserRepository implements IRepository<User> {
         }
     }
 
+    public User getCurrentUserProfileReference() {
+        return em.getReference(User.class, userContext.getCurrentUser().getId());
+    }
+
     public Optional<User> findByName(String name) {
         TypedQuery<User> query = em.createQuery("select u from User u where u.name = :name", User.class);
         query.setParameter("name", name);
@@ -96,24 +113,32 @@ public class UserRepository implements IRepository<User> {
     }
 
     public boolean authorize(User user, String password) {
-        return !user.getPassword().equals(password);
+        return user.getPassword().equals(password);
     }
 
     public void exportToCSV(String filePath) {
-        CSVHandlers.users().exportToCSV(filePath);
+        csvHandler.exportToCSV(findAll(), filePath);
     }
 
+    @Transactional
     public void importFromCSV(String filePath) {
-        for (User user : CSVHandlers.users().importFromCSV(filePath)) {
-            EntityTransaction tx = em.getTransaction();
-            try {
-                tx.begin();
-                save(user);
-                tx.commit();
-            } catch (Exception e) {
-                logger.error(IMPORT_ERROR_MSG, user.getId(), e.getMessage());
-                tx.rollback();
-            }
+        for (User user : csvHandler.importFromCSV(filePath)) {
+            em.createNativeQuery("insert into users (" +
+                    "id, " +
+                    "name, " +
+                    "password, " +
+                    "role) " +
+                    "values (:id, :name, :password, :role) " +
+                    "on conflict (id) " +
+                    "do update set " +
+                    "name = EXCLUDED.name, " +
+                    "password = EXCLUDED.password, " +
+                    "role = EXCLUDED.role")
+                    .setParameter("id", user.getId())
+                    .setParameter("name", user.getName())
+                    .setParameter("password", user.getPassword())
+                    .setParameter("role", user.getRole().toString())
+                    .executeUpdate();
         }
 
         logger.info(IMPORT_SUCCESS_MSG, filePath);

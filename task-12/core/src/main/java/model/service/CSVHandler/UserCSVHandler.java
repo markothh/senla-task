@@ -1,14 +1,10 @@
 package model.service.CSVHandler;
 
-import jakarta.persistence.EntityManager;
-import model.config.JPAConfig;
 import model.entity.User;
 import model.enums.UserRole;
-import model.repository.BookRepository;
-import model.repository.OrderRepository;
-import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -18,10 +14,9 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class UserCSVHandler implements ICSVHandler<User> {
+@Service
+public class UserCSVHandler implements ICSVHandler<User> {
     private static final Logger logger = LogManager.getLogger();
-    private static UserCSVHandler INSTANCE;
-    private final UserRepository userRepository = new UserRepository(JPAConfig.getEntityManager());
 
     private static final String EXPORT_SUCCESS_MSG = "Пользователи успешно экспортированы в файл '{}'";
     private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
@@ -31,20 +26,11 @@ public final class UserCSVHandler implements ICSVHandler<User> {
     private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность пользователя из данных файла. Неверный формат данных: %s";
 
-    private UserCSVHandler() { }
-
-    public static UserCSVHandler getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new UserCSVHandler();
-        }
-        return INSTANCE;
-    }
-
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<User> users, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;password;role\n");
-            for (User user : userRepository.findAll()) {
+            for (User user : users) {
                 writer.write(String.format("%s;%s;%s;%s%n",
                         user.getId(),
                         user.getName(),

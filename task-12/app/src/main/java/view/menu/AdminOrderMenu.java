@@ -1,7 +1,7 @@
 package view.menu;
 
-import model.service.UserContext;
 import view.MenuItem;
+import view.MenuProvider;
 import view.menu.operations.OrderActionsMenu;
 import view.menu.operations.OrderSortFieldMenu;
 
@@ -24,10 +24,10 @@ public class AdminOrderMenu extends Menu {
                     System.out.println("Введите список книг, которые хотите заказать, через запятую в одну строку");
                     List<String> books = Arrays.asList(new Scanner(System.in).nextLine()
                             .split(","));
-                    bookShop.createOrder(UserContext.getInstance().getCurrentUser(), books);
+                    bookShop.createOrder(books);
                 },
                         null),
-                new MenuItem("Выполнить действие с заказом по номеру", () -> { }, new OrderActionsMenu(this)),
+                new MenuItem("Выполнить действие с заказом по номеру", () -> { }, MenuProvider.create(new OrderActionsMenu(this))),
                 new MenuItem("Просмотреть все заказы", () -> { },
                         new OrderSortFieldMenu(this)),
                 new MenuItem("Экспорт в CSV", () -> {
