@@ -1,21 +1,29 @@
 package model.repository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
-import model.config.JPAConfig;
+import jakarta.transaction.Transactional;
 import model.entity.Order;
 import model.enums.OrderStatus;
-import model.service.CSVHandler.CSVHandlers;
+import model.service.CSVHandler.OrderCSVHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class OrderRepository implements IRepository<Order> {
     private static final Logger logger = LogManager.getLogger();
-    private final EntityManager em;
+
+    @Lazy
+    private final OrderCSVHandler csvHandler;
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String GET_BY_ID_SUCCESS_MSG = "Заказ с id = {} получен";
     private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
@@ -24,12 +32,10 @@ public class OrderRepository implements IRepository<Order> {
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Заказ с id = {} успешно удален";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
     private static final String IMPORT_SUCCESS_MSG = "Заказы успешно импортированы из файла '{}'";
-    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать заказ с id = {}: {}";
     private static final String SET_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: заказ не найден";
-    private static final String SET_STATUS_SUCCESS_MSG = "Статус заказа с id = {} успешно изменен";
 
-    public OrderRepository(EntityManager em) {
-        this.em = em;
+    public OrderRepository(OrderCSVHandler csvHandler) {
+        this.csvHandler = csvHandler;
     }
 
     @Override
@@ -55,16 +61,18 @@ public class OrderRepository implements IRepository<Order> {
     }
 
     @Override
+    @Transactional
     public void save(Order obj) {
         if (obj.getId() == null) {
             em.persist(obj);
         } else {
             em.merge(obj);
         }
-        logger.info(ADD_SUCCESS_MSG);
+        logger.info(ADD_SUCCESS_MSG, obj.getId());
     }
 
     @Override
+    @Transactional
     public void deleteById(int id) {
         Order order = em.find(Order.class, id);
         if (order != null) {
@@ -81,41 +89,34 @@ public class OrderRepository implements IRepository<Order> {
                 .orElse("");
     }
 
+    @Transactional
     public void setOrderStatus (int id, OrderStatus status) throws IllegalStateException {
-        EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-
-            findById(id).ifPresentOrElse(
-                    order -> order.setStatus(status),
-                    () -> {
-                        logger.error(SET_STATUS_ERROR_MSG, id);
-                    }
-            );
-
-            tx.commit();
-            logger.info(SET_STATUS_SUCCESS_MSG, id);
-        } catch (Exception e) {
-            tx.rollback();
-            throw e;
-        }
+        findById(id).ifPresentOrElse(
+                order -> order.setStatus(status),
+                () -> {
+                    logger.error(SET_STATUS_ERROR_MSG, id);
+                }
+        );
     }
 
     public void exportToCSV(String filePath) {
-        CSVHandlers.orders().exportToCSV(filePath);
+        csvHandler.exportToCSV(findAll(), filePath);
     }
 
+    @Transactional
     public void importFromCSV(String filePath) {
-        for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
-            EntityTransaction tx = em.getTransaction();
-            try {
-                tx.begin();
-                save(order);
-                tx.commit();
-            } catch (Exception e) {
-                logger.error(IMPORT_ERROR_MSG, order.getId(), e.getMessage());
-                tx.rollback();
-            }
+        for (Order order : csvHandler.importFromCSV(filePath)) {
+            em.createNativeQuery("insert into orders (" +
+                    "user_id, " +
+                    "created_at, " +
+                    "completed_at, " +
+                    "status)" +
+                    "values (:user_id, :created_at, :completed_at, :status)")
+                    .setParameter("user_id", order.getUser().getId())
+                    .setParameter("created_at", order.getCreatedAt())
+                    .setParameter("completed_at", order.getCompletedAt())
+                    .setParameter("status", order.getStatus().toString())
+                    .executeUpdate();
         }
 
         logger.info(IMPORT_SUCCESS_MSG, filePath);

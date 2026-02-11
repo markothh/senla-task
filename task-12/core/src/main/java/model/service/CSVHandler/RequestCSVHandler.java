@@ -1,15 +1,12 @@
 package model.service.CSVHandler;
 
 import jakarta.persistence.EntityManager;
-import model.config.JPAConfig;
+import jakarta.persistence.PersistenceContext;
 import model.entity.Book;
 import model.entity.Request;
-import model.repository.BookRepository;
-import model.repository.OrderRepository;
-import model.repository.RequestRepository;
-import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.io.FileReader;
@@ -21,11 +18,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-public final class RequestCSVHandler implements ICSVHandler<Request> {
+@Service
+public class RequestCSVHandler implements ICSVHandler<Request> {
     private static final Logger logger = LogManager.getLogger();
-    private static RequestCSVHandler INSTANCE;
-    private final BookRepository bookRepository;
-    private final RequestRepository requestRepository;
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String EXPORT_SUCCESS_MSG = "Запросы успешно экспортированы в файл '{}'";
     private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
@@ -33,29 +31,14 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
     private static final String ADD_ERROR_MSG = "Данные запроса не добавлены: {}";
     private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
     private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
-    private static final String BOOK_NOT_FOUND_ERROR_MSG = "Книга с id = %d не найдена";
     private static final String ASSOCIATION_ERROR = "Не удалось установить соответствия между сущностями: %s";
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность запроса из данных файла. Неверный формат данных: %s";
 
-
-    private RequestCSVHandler() {
-        EntityManager em = JPAConfig.getEntityManager();
-        bookRepository = new BookRepository(em);
-        requestRepository = new RequestRepository(em);
-    }
-
-    public static RequestCSVHandler getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RequestCSVHandler();
-        }
-        return INSTANCE;
-    }
-
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<Request> requests, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;createdAt;book;quantity\n");
-            for (Request request : requestRepository.findAll()) {
+            for (Request request : requests) {
                 writer.write(String.format("%s;%s;%s;%s%n",
                         request.getId(),
                         request.getCreatedAt() != null ? request.getCreatedAt() : "",
@@ -95,19 +78,13 @@ public final class RequestCSVHandler implements ICSVHandler<Request> {
         return result;
     }
 
-    private Book findBook(int bookId) {
-        return bookRepository.findById(bookId)
-                .orElseThrow(() ->
-                        new NoSuchElementException(String.format(BOOK_NOT_FOUND_ERROR_MSG, bookId)));
-    }
-
     private Request parseRequest(String requestData) {
         String[] args = requestData.split(";");
         try {
              return new Request(
                     Integer.parseInt(args[0]),
                     !args[1].isBlank() ? LocalDate.parse(args[1]) : null,
-                    findBook(Integer.parseInt(args[2])),
+                    em.getReference(Book.class, args[2]),
                     Integer.parseInt(args[3]));
         } catch (NoSuchElementException e) {
             logger.debug(requestData);

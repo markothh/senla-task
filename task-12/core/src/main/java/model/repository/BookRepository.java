@@ -1,21 +1,27 @@
 package model.repository;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
-import model.config.JPAConfig;
 import model.entity.Book;
-import model.entity.Request;
-import model.service.CSVHandler.CSVHandlers;
+import model.service.CSVHandler.BookCSVHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
-public final class BookRepository implements IRepository<Book> {
+@Repository
+public class BookRepository implements IRepository<Book> {
     private static final Logger logger = LogManager.getLogger();
-    private final EntityManager em;
+
+    @Lazy
+    private final BookCSVHandler csvHandler;
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String GET_BY_ID_SUCCESS_MSG = "Книга с id = {} получена";
     private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
@@ -26,10 +32,9 @@ public final class BookRepository implements IRepository<Book> {
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Книга с id = {} успешно удалена";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
     private static final String IMPORT_SUCCESS_MSG = "Книги успешно импортированы из файла '{}'";
-    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать книгу с id = {}: {}";
 
-    public BookRepository(EntityManager em) {
-        this.em = em;
+    public BookRepository(BookCSVHandler csvHandler) {
+        this.csvHandler = csvHandler;
     }
 
     @Override
@@ -74,36 +79,56 @@ public final class BookRepository implements IRepository<Book> {
     }
 
     public Optional<Book> findByName(String name) {
-        try (EntityManager em = JPAConfig.getEntityManager()) {
-            TypedQuery<Book> query = em.createQuery("select b from Book b where b.name = :name", Book.class);
-            query.setParameter("name", name);
-            Book book = query.getSingleResult();
-            if (book != null) {
-                logger.info(GET_BY_NAME_SUCCESS_MSG, name);
-                return Optional.of(book);
-            } else {
-                logger.error(GET_BY_NAME_ERROR_MSG, name);
-                return Optional.empty();
-            }
+        TypedQuery<Book> query = em.createQuery("select b from Book b where b.name = :name", Book.class);
+        query.setParameter("name", name);
+        Book book = query.getSingleResult();
+        if (book != null) {
+            logger.info(GET_BY_NAME_SUCCESS_MSG, name);
+            return Optional.of(book);
+        } else {
+            logger.error(GET_BY_NAME_ERROR_MSG, name);
+            return Optional.empty();
         }
     }
 
     public void exportToCSV(String filePath) {
-        CSVHandlers.books().exportToCSV(filePath);
+        csvHandler.exportToCSV(findAll(), filePath);
 
     }
 
     public void importFromCSV(String filePath) {
-        for (Book book : CSVHandlers.books().importFromCSV(filePath)) {
-            EntityTransaction tx = em.getTransaction();
-            try {
-                tx.begin();
-                save(book);
-                tx.commit();
-            } catch (Exception e) {
-                logger.error(IMPORT_ERROR_MSG, book.getId(), e.getMessage());
-                tx.rollback();
-            }
+        for (Book book : csvHandler.importFromCSV(filePath)) {
+            em.createNativeQuery("insert into books (" +
+                    "id, " +
+                    "name, " +
+                    "description, " +
+                    "author, " +
+                    "genre, " +
+                    "price, " +
+                    "status, " +
+                    "publish_year, " +
+                    "stock_date) " +
+                    "values (:id, :name, :description, :author, :genre, :price, :status, :publish_year, :stock_date) " +
+                    "on conflict (id) " +
+                    "do update set " +
+                    "name = EXCLUDED.name, " +
+                    "description = EXCLUDED.description, " +
+                    "author = EXCLUDED.author, " +
+                    "genre = EXCLUDED.genre, " +
+                    "price = EXCLUDED.price, " +
+                    "status = EXCLUDED.status, " +
+                    "publish_year = EXCLUDED.publish_year, " +
+                    "stock_date = EXCLUDED.stock_date")
+                    .setParameter("id", book.getId())
+                    .setParameter("name", book.getName())
+                    .setParameter("description", book.getDescription())
+                    .setParameter("author", book.getAuthor())
+                    .setParameter("genre", book.getGenre())
+                    .setParameter("price", book.getPrice())
+                    .setParameter("status", book.getStatus().toString())
+                    .setParameter("publish_year", book.getPublishYear())
+                    .setParameter("stock_date", book.getStockDate())
+                    .executeUpdate();
         }
 
         logger.info(IMPORT_SUCCESS_MSG, filePath);

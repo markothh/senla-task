@@ -1,27 +1,29 @@
 package model.config;
-import model.annotations.ConfigProperty;
 
-public final class AppConfig {
-    private static AppConfig INSTANCE;
-    @ConfigProperty(propertyName = "staleMonths")
-    private int staleMonths;
-    @ConfigProperty(propertyName = "autoCompleteRequests")
-    private boolean autoCompleteRequests;
+import jakarta.persistence.EntityManagerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-    public int getStaleMonths() {
-        return staleMonths;
+@Configuration
+@PropertySource("classpath:application.properties")
+@ComponentScan(basePackages = {"model", "view", "controller"})
+@EnableTransactionManagement(proxyTargetClass = true)
+public class AppConfig {
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
+        emf.setPersistenceUnitName("persistenceUnit");
+        emf.setJpaVendorAdapter(new org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter());
+        return emf;
     }
 
-    public boolean getAutoCompleteRequests() {
-        return autoCompleteRequests;
+    @Bean
+    public JpaTransactionManager transactionManager(EntityManagerFactory emf) {
+        return new JpaTransactionManager(emf);
     }
-
-    public static AppConfig getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new AppConfig();
-        }
-        return INSTANCE;
-    }
-
-    private AppConfig() { }
 }
