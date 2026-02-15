@@ -35,7 +35,7 @@ public class UserRepository implements IRepository<User> {
     public Optional<User> findById(int id) {
         User user = em.find(User.class, id);
         if (user != null) {
-            logger.info(GET_BY_ID_SUCCESS_MSG, id);
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(user);
         } else {
             logger.error(GET_BY_ID_ERROR_MSG, id);
@@ -46,7 +46,7 @@ public class UserRepository implements IRepository<User> {
     @Override
     public List<User> findAll() {
         TypedQuery<User> query = em.createQuery("select u from User u", User.class);
-        logger.info(GET_ALL_SUCCESS_MSG);
+        logger.debug(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 

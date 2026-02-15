@@ -39,7 +39,7 @@ public class RequestRepository implements IRepository<Request> {
     public Optional<Request> findById(int id) {
         Request request = em.find(Request.class, id);
         if (request != null) {
-            logger.info(GET_BY_ID_SUCCESS_MSG, id);
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(request);
         } else {
             logger.error(GET_BY_ID_ERROR_MSG, id);
@@ -52,7 +52,7 @@ public class RequestRepository implements IRepository<Request> {
         TypedQuery<Request> query = em.createQuery(
                 "select r from Request r " +
                         "join fetch r.book", Request.class);
-        logger.info(GET_ALL_SUCCESS_MSG);
+        logger.debug(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 

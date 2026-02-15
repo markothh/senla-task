@@ -36,7 +36,7 @@ public final class BookRepository implements IRepository<Book> {
     public Optional<Book> findById(int id) {
         Book book = em.find(Book.class, id);
         if (book != null) {
-            logger.info(GET_BY_ID_SUCCESS_MSG, id);
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(book);
         } else {
             logger.error(GET_BY_ID_ERROR_MSG, id);
@@ -47,7 +47,7 @@ public final class BookRepository implements IRepository<Book> {
     @Override
     public List<Book> findAll() {
         TypedQuery<Book> query = em.createQuery("select b from Book b", Book.class);
-        logger.info(GET_ALL_SUCCESS_MSG);
+        logger.debug(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 
