@@ -1,147 +1,78 @@
 package model.repository;
 
-import model.config.DBConnection;
-import model.entity.Book;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.TypedQuery;
+import model.config.JPAConfig;
 import model.entity.Order;
 import model.enums.OrderStatus;
 import model.service.CSVHandler.CSVHandlers;
-import model.utils.EntityParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.Serializable;
-import java.sql.Date;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
-public final class OrderRepository implements Serializable, IRepository<Order> {
+public class OrderRepository implements IRepository<Order> {
     private static final Logger logger = LogManager.getLogger();
-    private static OrderRepository INSTANCE;
+    private final EntityManager em;
 
-    private OrderRepository() { }
+    private static final String GET_BY_ID_SUCCESS_MSG = "Заказ с id = {} получен";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
+    private static final String GET_ALL_SUCCESS_MSG = "Список заказов успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Заказ '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Заказ с id = {} успешно удален";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Заказы успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать заказ с id = {}: {}";
+    private static final String SET_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: заказ не найден";
+    private static final String SET_STATUS_SUCCESS_MSG = "Статус заказа с id = {} успешно изменен";
 
-    public static OrderRepository getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new OrderRepository();
-        }
-        return INSTANCE;
+    public OrderRepository(EntityManager em) {
+        this.em = em;
     }
 
     @Override
-    public void save(Order order) {
-        try {
-            int orderId = saveOrderData(order);
-            for (Book book : order.getBooks()) {
-                saveOrderBook(orderId, book.getId());
-            }
-            logger.info("Заказ успешно добавлен. Ему присвовен номер {}", orderId);
-        } catch (SQLException e) {
-            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
+    public Optional<Order> findById(int id) {
+        Order order = em.find(Order.class, id);
+        if (order != null) {
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
+            return Optional.of(order);
+        } else {
+            logger.error(GET_BY_ID_ERROR_MSG, id);
+            return Optional.empty();
         }
     }
 
     @Override
     public List<Order> findAll() {
-        Map<Integer, Order> ordersData = new HashMap<>();
-        try (var stmt = DBConnection.getInstance().getConnection().createStatement()) {
-            try (var rs = stmt.executeQuery("select " +
-                    "o.id as order_id, " +
-                    "o.status as order_status, " +
-                    "o.created_at as order_created_at, " +
-                    "o.completed_at as order_completed_at, " +
-                    "u.id as user_id, " +
-                    "u.name as user_name, " +
-                    "b.id as book_id, " +
-                    "b.name as book_name, " +
-                    "b.description as book_description, " +
-                    "b.author as book_author, " +
-                    "b.genre as book_genre, " +
-                    "b.price as book_price, " +
-                    "b.status as book_status, " +
-                    "b.publish_year as book_publish_year, " +
-                    "b.stock_date as book_stock_date " +
-                    "from orders o " +
-                    "join users u on u.id = o.user_id " +
-                    "join order_book ob on ob.order_id = o.id " +
-                    "join books b on b.id = ob.book_id ")) {
-                while (rs.next()) {
-                    try {
-                        int orderId = rs.getInt("order_id");
-                        Order order = ordersData.computeIfAbsent(
-                                orderId,
-                                id -> EntityParser.parseOrder(rs)
-                        );
-
-                        order.getBooks().add(EntityParser.parseBook(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные заказа не удалось извлечь из БД: {}", e.getMessage());
-                    }
-
-                }
-                logger.info("Список заказов успешно получен");
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить список заказов: {}", e.getMessage());
-        }
-        return new ArrayList<>(ordersData.values());
+        TypedQuery<Order> query = em.createQuery(
+                "select o from Order o " +
+                        "join fetch o.user " +
+                        "join fetch o.books", Order.class);
+        logger.debug(GET_ALL_SUCCESS_MSG);
+        return query.getResultList();
     }
 
     @Override
-    public Optional<Order> findById(int orderId) {
-        try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
-                "o.id as order_id, " +
-                "o.status as order_status, " +
-                "o.created_at as order_created_at, " +
-                "o.completed_at as order_completed_at, " +
-                "u.id as user_id, " +
-                "u.name as user_name, " +
-                "b.id as book_id, " +
-                "b.name as book_name, " +
-                "b.description as book_description, " +
-                "b.author as book_author, " +
-                "b.genre as book_genre, " +
-                "b.price as book_price, " +
-                "b.status as book_status, " +
-                "b.publish_year as book_publish_year, " +
-                "b.stock_date as book_stock_date " +
-                "from orders o " +
-                "join users u on u.id = o.user_id " +
-                "join order_books ob on ob.order_id = o.id " +
-                "join books b on b.id = ob.book_id " +
-                "where o.id = ?")) {
-            stmt.setInt(1, orderId);
-            try (var rs = stmt.executeQuery()) {
-                Order order = null;
-                while (rs.next()) {
-                    try {
-                        if (order == null) {
-                            order = EntityParser.parseOrder(rs);
-                        }
-                        order.getBooks().add(EntityParser.parseBook(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные заказа не удалось извлечь из БД: {}", e.getMessage());
-                    }
-                }
-
-                if (order != null) {
-                    logger.info("Успешно получены данные заказа с id = {}", orderId);
-                    return Optional.of(order);
-                } else {
-                    logger.error("Не удалось получить данные заказа с id = {}", orderId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные заказа с id = {}: {}", orderId, e.getMessage());
-            return Optional.empty();
+    public void save(Order obj) {
+        if (obj.getId() == null) {
+            em.persist(obj);
+        } else {
+            em.merge(obj);
         }
+        logger.info(ADD_SUCCESS_MSG);
+    }
+
+    @Override
+    public void deleteById(int id) {
+        Order order = em.find(Order.class, id);
+        if (order != null) {
+            em.remove(order);
+        } else {
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
+        }
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
     public String getOrderInfo(int orderId) {
@@ -150,11 +81,24 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
                 .orElse("");
     }
 
-    public void setOrderStatus (int orderId, OrderStatus status) throws IllegalStateException {
-        findById(orderId)
-                .orElseThrow(() ->
-                        new NoSuchElementException(String.format("Заказ с номером %d не найден", orderId)))
-                .setStatus(status);
+    public void setOrderStatus (int id, OrderStatus status) throws IllegalStateException {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+
+            findById(id).ifPresentOrElse(
+                    order -> order.setStatus(status),
+                    () -> {
+                        logger.error(SET_STATUS_ERROR_MSG, id);
+                    }
+            );
+
+            tx.commit();
+            logger.info(SET_STATUS_SUCCESS_MSG, id);
+        } catch (Exception e) {
+            tx.rollback();
+            throw e;
+        }
     }
 
     public void exportToCSV(String filePath) {
@@ -162,87 +106,18 @@ public final class OrderRepository implements Serializable, IRepository<Order> {
     }
 
     public void importFromCSV(String filePath) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into orders (" +
-                        "id, " +
-                        "user_id, " +
-                        "created_at, " +
-                        "completed_at, " +
-                        "status)" +
-                        "values (?, ?, ?, ?, ?) " +
-                        "on conflict (id) " +
-                        "do update set " +
-                        "user_id = EXCLUDED.user_id, " +
-                        "created_at = EXCLUDED.created_at, " +
-                        "completed_at = EXCLUDED.completed_at, " +
-                        "status = EXCLUDED.status")) {
-            for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
-                stmt.setInt(1, order.getId());
-                stmt.setInt(2, order.getUser().getId());
-                LocalDate createdAt = order.getCreatedAt();
-                if (createdAt != null) {
-                    stmt.setDate(3, Date.valueOf(createdAt));
-                }
-                LocalDate completedAt = order.getCompletedAt();
-                if (createdAt != null) {
-                    stmt.setDate(4, Date.valueOf(createdAt));
-                }
-                stmt.setString(5, order.getStatus());
-
-                stmt.addBatch();
+        for (Order order : CSVHandlers.orders().importFromCSV(filePath)) {
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                save(order);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error(IMPORT_ERROR_MSG, order.getId(), e.getMessage());
+                tx.rollback();
             }
-
-            stmt.executeBatch();
-            logger.info("Заказы успешно импортированы из файла '{}'", filePath);
-        } catch (SQLException e) {
-            logger.error("Не удалось импортировать заказы из файла '{}'. Подробнее: {}", filePath, e.getMessage());
         }
-    }
 
-    private void saveOrderBook(int orderId, int bookId) throws SQLException {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into order_book (" +
-                        "order_id, " +
-                        "book_id, " +
-                        "quantity) " +
-                        "values (?, ?, 1) " +
-                        "on conflict (order_id, book_id) " +
-                        "do update set " +
-                        "quantity = EXCLUDED.quantity + 1")) {
-            stmt.setInt(1, orderId);
-            stmt.setInt(2, bookId);
-
-            stmt.execute();
-        } catch (SQLException e) {
-            throw new SQLException(String.format("Не удалось добавить книги из заказа с id = %d: %s}", orderId, e.getMessage()), e);
-        }
-    }
-
-    private int saveOrderData(Order order) throws SQLException {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into orders (" +
-                        "user_id, " +
-                        "created_at, " +
-                        "completed_at, " +
-                        "status)" +
-                        "values (?, ?, ?, ?)" +
-                        "returning id")) {
-            stmt.setInt(1, order.getUser().getId());
-            LocalDate createdAt = order.getCreatedAt();
-            if (createdAt != null) {
-                stmt.setDate(2, Date.valueOf(createdAt));
-            }
-            LocalDate completedAt = order.getCompletedAt();
-            if (completedAt != null) {
-                stmt.setDate(3, Date.valueOf(completedAt));
-            }
-            stmt.setString(4, order.getStatus());
-
-            ResultSet rs = stmt.executeQuery();
-            rs.next();
-            return rs.getInt("id");
-        } catch (SQLException e) {
-            throw new SQLException(String.format("Не удалось добавить заказ: %s", e.getMessage()), e);
-        }
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
     }
 }

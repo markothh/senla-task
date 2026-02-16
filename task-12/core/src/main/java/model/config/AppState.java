@@ -14,6 +14,10 @@ import java.io.Serializable;
 
 public class AppState implements Serializable {
     private static final Logger logger = LogManager.getLogger();
+    private static final String LOAD_SUCCESS_MSG = "Данные из файла {} загружены. ";
+    private static final String LOAD_ERROR_MSG = "Произошла ошибка при загрузке состояния программы. " +
+            "Работа будет продолжена с пустым списком объектов." +
+            "Файл: {}";
 
     @ConfigProperty(propertyName = "userContext")
     private static String userContextPath;
@@ -29,11 +33,9 @@ public class AppState implements Serializable {
     private static void loadItems(String filePath) {
         try (ObjectInputStream is = new ObjectInputStream(new FileInputStream(filePath))) {
             is.readObject();
-            logger.info("Данные из файла {} загружены. ", filePath);
+            logger.info(LOAD_SUCCESS_MSG, filePath);
         } catch (IOException | ClassNotFoundException e) {
-            logger.warn("Произошла ошибка при загрузке состояния программы. " +
-                    "Работа будет продолжена с пустым списком объектов." +
-                    "Файл: {}", filePath);
+            logger.warn(LOAD_ERROR_MSG, filePath);
         }
     }
 

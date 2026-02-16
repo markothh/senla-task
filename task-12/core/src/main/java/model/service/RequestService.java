@@ -1,6 +1,9 @@
 package model.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import model.annotations.Inject;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.Request;
 import model.repository.RequestRepository;
@@ -15,11 +18,18 @@ import java.util.Optional;
 
 public final class RequestService {
     private static final Logger logger = LogManager.getLogger();
-    private static RequestService INSTANCE;
-    @Inject
-    private RequestRepository requestRepository;
-    @Inject
-    private BookService bookService;
+    private final EntityManager em;
+    private final RequestRepository requestRepository = new RequestRepository(JPAConfig.getEntityManager());
+
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: quantity, bookName";
+    private static final String REQUEST_CREATION_AVAILABILITY_ERROR_MSG = "Невозможно создать заказ на книгу, которая есть в наличии.";
+    private static final String REQUEST_CREATION_ERROR_MSG = "Не удалось создать запрос на книгу '{}': {}";
+    private static final String REQUEST_CREATION_SUCCESS_MSG = "Успешно создан запрос на книгу '{}'";
+
+    public RequestService(EntityManager em) {
+        this.em = em;
+    }
 
     public List<Request> getRequests() {
         return requestRepository.findAll();
@@ -33,8 +43,7 @@ public final class RequestService {
 
         Comparator<Request> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            logger.error("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: quantity, bookName");
+            logger.error(SORT_ERROR_MSG);
             return List.of();
         }
 
@@ -60,15 +69,26 @@ public final class RequestService {
     }
 
     public void createRequest(String bookName) {
+        BookService bookService = new BookService(em);
         if (bookService.isBookAvailable(bookName)) {
-            logger.error("Невозможно создать заказ на книгу, которая есть в наличии.");
+            logger.error(REQUEST_CREATION_AVAILABILITY_ERROR_MSG);
         }
 
         try {
             Book bookToRequest = bookService.getBookByName(bookName);
-            createRequestIfNotAvailable(bookToRequest);
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                createRequestIfNotAvailable(bookToRequest);
+                tx.commit();
+                logger.info(REQUEST_CREATION_SUCCESS_MSG, bookName);
+            } catch (Exception e) {
+                logger.error(REQUEST_CREATION_ERROR_MSG, bookName, e.getMessage());
+                tx.rollback();
+            }
+
         } catch (NoSuchElementException e) {
-            logger.error("Не удалось создать запрос на книгу '{}': {}", bookName, e.getMessage());
+            logger.error(REQUEST_CREATION_ERROR_MSG, bookName, e.getMessage());
         }
     }
 
@@ -83,13 +103,4 @@ public final class RequestService {
     public void importRequests(String filePath) {
         requestRepository.importFromCSV(filePath);
     }
-
-    public static RequestService getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RequestService();
-        }
-        return INSTANCE;
-    }
-
-    private RequestService() { }
 }
