@@ -1,4 +1,4 @@
-package model.utils;
+package model.utils.di;
 
 import model.annotations.ConfigProperty;
 
@@ -8,6 +8,8 @@ import java.lang.reflect.Field;
 import java.util.Properties;
 
 public class ConfigLoader {
+    private static final String GET_CONFIG_FILE_ERROR_MSG = "Не удалось получить файл конфигурации";
+
     public static void configure(Object target) {
         Class<?> c = target.getClass();
 
@@ -49,7 +51,7 @@ public class ConfigLoader {
     private static Properties loadProperties(String fileName) {
         try (InputStream config = ConfigLoader.class.getClassLoader().getResourceAsStream(fileName)) {
             if (config == null) {
-                throw new RuntimeException("Не удалось получить файл конфигурации");
+                throw new RuntimeException(GET_CONFIG_FILE_ERROR_MSG);
             }
 
             Properties props = new Properties();

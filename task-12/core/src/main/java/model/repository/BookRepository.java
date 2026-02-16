@@ -1,161 +1,90 @@
 package model.repository;
 
-import model.config.DBConnection;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.TypedQuery;
+import model.config.JPAConfig;
 import model.entity.Book;
+import model.entity.Request;
 import model.service.CSVHandler.CSVHandlers;
-import model.utils.EntityParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.Serializable;
-import java.sql.Date;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public final class BookRepository implements Serializable, IRepository<Book> {
+public final class BookRepository implements IRepository<Book> {
     private static final Logger logger = LogManager.getLogger();
-    private static BookRepository INSTANCE;
+    private final EntityManager em;
 
-    public static BookRepository getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new BookRepository();
+    private static final String GET_BY_ID_SUCCESS_MSG = "Книга с id = {} получена";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
+    private static final String GET_BY_NAME_SUCCESS_MSG = "Книга с name = {} получена";
+    private static final String GET_BY_NAME_ERROR_MSG = "Не удалось получить данные книги с name = {}";
+    private static final String GET_ALL_SUCCESS_MSG = "Список книг успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Книга '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Книга с id = {} успешно удалена";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Книги успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать книгу с id = {}: {}";
+
+    public BookRepository(EntityManager em) {
+        this.em = em;
+    }
+
+    @Override
+    public Optional<Book> findById(int id) {
+        Book book = em.find(Book.class, id);
+        if (book != null) {
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
+            return Optional.of(book);
+        } else {
+            logger.error(GET_BY_ID_ERROR_MSG, id);
+            return Optional.empty();
         }
-        return INSTANCE;
     }
 
     @Override
     public List<Book> findAll() {
-        List<Book> books = new ArrayList<>();
-        try (var stmt = DBConnection.getInstance().getConnection().createStatement()) {
-            try (var rs = stmt.executeQuery("select " +
-                    "id as book_id, " +
-                    "name as book_name, " +
-                    "description as book_description, " +
-                    "author as book_author, " +
-                    "genre as book_genre, " +
-                    "price as book_price, " +
-                    "status as book_status, " +
-                    "publish_year as book_publish_year, " +
-                    "stock_date as book_stock_date " +
-                    "from books")) {
-                while (rs.next()) {
-                    try {
-                        books.add(EntityParser.parseBook(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
-                    }
-                }
-            }
-            logger.info("Список книг успешно получен.");
-        } catch (SQLException e) {
-            logger.error("Не удалось получить список книг: {}", e.getMessage());
-        }
-        return books;
+        TypedQuery<Book> query = em.createQuery("select b from Book b", Book.class);
+        logger.debug(GET_ALL_SUCCESS_MSG);
+        return query.getResultList();
     }
 
     @Override
-    public Optional<Book> findById(int bookId) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("select " +
-                                "id as book_id, " +
-                                "name as book_name, " +
-                                "description as book_description, " +
-                                "author as book_author, " +
-                                "genre as book_genre, " +
-                                "price as book_price, " +
-                                "status as book_status, " +
-                                "publish_year as book_publish_year, " +
-                                "stock_date as book_stock_date " +
-                                "from books " +
-                                "where id = ?")) {
-            stmt.setInt(1, bookId);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Книга с id = {} получена", bookId);
-                    try {
-                        return Optional.of(EntityParser.parseBook(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные книги с id = {}", bookId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные книги с id = {}: {}", bookId, e.getMessage());
-            return Optional.empty();
+    public void save(Book obj) {
+        if (obj.getId() == null) {
+            em.persist(obj);
+        } else {
+            em.merge(obj);
         }
+        logger.info(ADD_SUCCESS_MSG, obj.getName());
     }
+
 
     @Override
-    public void save(Book book) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into books (" +
-                        "name, " +
-                        "description, " +
-                        "author, " +
-                        "genre, " +
-                        "price, " +
-                        "status, " +
-                        "publish_year, " +
-                        "stock_date)" +
-                        "values (?, ?, ?, ?, ?, ?, ?, ?)")) {
-            stmt.setString(1, book.getName());
-            stmt.setString(2, book.getDescription());
-            stmt.setString(3, book.getAuthor());
-            stmt.setString(4, book.getGenre());
-            stmt.setDouble(5, book.getPrice());
-            stmt.setString(6, book.getStatus().toString());
-            stmt.setInt(7, book.getPublishYear());
-            LocalDate stockDate = book.getStockDate();
-            if (stockDate != null) {
-                stmt.setDate(8, Date.valueOf(stockDate));
-            }
-
-            stmt.execute();
-            logger.info("Книга '{}' успешно добавлена", book.getName());
-        } catch (SQLException e) {
-            logger.error("Не удалось добавить книгу '{}': {}", book.getName(), e.getMessage());
+    public void deleteById(int id) {
+        Book book = em.find(Book.class, id);
+        if (book != null) {
+            em.remove(book);
+        } else {
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
         }
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
-    public Optional<Book> findByName(String bookName) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("select " +
-                                "id as book_id, " +
-                                "name as book_name, " +
-                                "description as book_description, " +
-                                "author as book_author, " +
-                                "genre as book_genre, " +
-                                "price as book_price, " +
-                                "status as book_status, " +
-                                "publish_year as book_publish_year, " +
-                                "stock_date as book_stock_date " +
-                                "from books " +
-                                "where name = ?")) {
-            stmt.setString(1, bookName);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Книга с name = {} успешно получена", bookName);
-                    try {
-                        return Optional.of(EntityParser.parseBook(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные книги не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные книги с name = {}", bookName);
-                    return Optional.empty();
-                }
+    public Optional<Book> findByName(String name) {
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            TypedQuery<Book> query = em.createQuery("select b from Book b where b.name = :name", Book.class);
+            query.setParameter("name", name);
+            Book book = query.getSingleResult();
+            if (book != null) {
+                logger.info(GET_BY_NAME_SUCCESS_MSG, name);
+                return Optional.of(book);
+            } else {
+                logger.error(GET_BY_NAME_ERROR_MSG, name);
+                return Optional.empty();
             }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные книги с name = {}: {}", bookName, e.getMessage());
-            return Optional.empty();
         }
     }
 
@@ -165,52 +94,18 @@ public final class BookRepository implements Serializable, IRepository<Book> {
     }
 
     public void importFromCSV(String filePath) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into books (" +
-                        "id, " +
-                        "name, " +
-                        "description, " +
-                        "author, " +
-                        "genre, " +
-                        "price, " +
-                        "status, " +
-                        "publish_year, " +
-                        "stock_date) " +
-                        "values (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                        "on conflict (id) " +
-                        "do update set " +
-                        "name = EXCLUDED.name, " +
-                        "description = EXCLUDED.description, " +
-                        "author = EXCLUDED.author, " +
-                        "genre = EXCLUDED.genre, " +
-                        "price = EXCLUDED.price, " +
-                        "status = EXCLUDED.status, " +
-                        "publish_year = EXCLUDED.publish_year, " +
-                        "stock_date = EXCLUDED.stock_date")) {
-
-            for (Book book : CSVHandlers.books().importFromCSV(filePath)) {
-                stmt.setInt(1, book.getId());
-                stmt.setString(2, book.getName());
-                stmt.setString(3, book.getDescription());
-                stmt.setString(4, book.getAuthor());
-                stmt.setString(5, book.getGenre());
-                stmt.setDouble(6, book.getPrice());
-                stmt.setString(7, book.getStatus().toString());
-                stmt.setInt(8, book.getPublishYear());
-                LocalDate stockDate = book.getStockDate();
-                if (stockDate != null) {
-                    stmt.setDate(9, Date.valueOf(stockDate));
-                }
-
-                stmt.addBatch();
+        for (Book book : CSVHandlers.books().importFromCSV(filePath)) {
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                save(book);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error(IMPORT_ERROR_MSG, book.getId(), e.getMessage());
+                tx.rollback();
             }
-
-            stmt.executeBatch();
-            logger.info("Книги успешно импортированы из файла '{}'", filePath);
-        } catch (SQLException e) {
-            logger.error("Не удалось импортировать книги из файла '{}'. Подробнее: {}", filePath, e.getMessage());
         }
-    }
 
-    private BookRepository() { }
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
+    }
 }

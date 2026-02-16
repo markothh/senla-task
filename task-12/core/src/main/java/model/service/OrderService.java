@@ -1,17 +1,18 @@
 package model.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import model.annotations.Inject;
-import model.config.DBConnection;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.DTO.UserProfile;
 import model.entity.Order;
+import model.entity.User;
 import model.enums.OrderStatus;
 import model.repository.OrderRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,12 +22,13 @@ import java.util.NoSuchElementException;
 public final class OrderService {
     private static final Logger logger = LogManager.getLogger();
     private static OrderService INSTANCE;
-    @Inject
-    private OrderRepository orderRepository;
-    @Inject
-    private RequestService requestService;
-    @Inject
-    private BookService bookService;
+    private final OrderRepository orderRepository = new OrderRepository(JPAConfig.getEntityManager());
+
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: completedAt, price, status";
+    private static final String CHANGE_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: {}";
+    private static final String ORDER_CREATION_ERROR_MSG = "Не удалось сформировать заказ: {}";
+    private static final String ORDER_CANCELLATION_ERROR_MSG = "Не удалось отменить заказ с id = {}";
 
     public List<Order> getOrders() {
         return orderRepository.findAll();
@@ -63,47 +65,37 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, status);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось изменить статус заказа с id = {}", orderId);
+            logger.error(CHANGE_STATUS_ERROR_MSG, orderId, e.getMessage());
         }
     }
 
     public void createOrder(UserProfile user, List<String> bookNames) {
-        Connection connection = DBConnection.getInstance().getConnection();
-        List<Book> books;
-        try {
-            books = bookService.formIdListFromNames(bookNames);
-        } catch (NoSuchElementException e) {
-            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
-            return;
-        }
+        try (EntityManager em = JPAConfig.getEntityManager()) {
+            BookService bookService = new BookService(em);
+            RequestService requestService = new RequestService(em);
+            List<Book> books;
+            try {
+                books = bookService.formIdListFromNames(bookNames);
+            } catch (NoSuchElementException e) {
+                logger.error(ORDER_CREATION_ERROR_MSG, e.getMessage());
+                return;
+            }
 
-        try {
-            connection.setAutoCommit(false);
+            EntityTransaction tx = em.getTransaction();
 
-            Order order = new Order(user);
-            for (Book book : books) {
-                if (!book.isAvailable()) {
-                    requestService.createRequestIfNotAvailable(book);
+            try {
+                Order order = new Order(em.getReference(User.class, user.getId()));
+                for (Book book : books) {
+                    if (!book.isAvailable()) {
+                        requestService.createRequestIfNotAvailable(book);
+                    }
+
+                    order.addBook(book);
                 }
 
-                order.addBook(book);
-            }
-
-            orderRepository.save(order);
-        } catch (SQLException e) {
-            try {
-                logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
-                connection.rollback();
-            } catch (SQLException e1) {
-                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
-                throw new RuntimeException(e1);
-            }
-        } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e1) {
-                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
-                throw new RuntimeException(e1);
+                orderRepository.save(order);
+            } catch (Exception e) {
+                logger.info(ORDER_CREATION_ERROR_MSG, e.getMessage());
             }
         }
     }
@@ -112,7 +104,7 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, OrderStatus.CANCELLED);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось отменить заказ с id = {}", orderId);
+            logger.error(ORDER_CANCELLATION_ERROR_MSG, orderId);
         }
     }
 

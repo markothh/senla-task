@@ -1,6 +1,7 @@
 package model.service;
 
 import model.annotations.Inject;
+import model.config.JPAConfig;
 import model.entity.Book;
 import model.entity.Order;
 import org.apache.logging.log4j.LogManager;
@@ -13,12 +14,10 @@ import java.util.List;
 public final class StatisticsService {
     private static final Logger logger = LogManager.getLogger();
     private static StatisticsService INSTANCE;
-    @Inject
-    private RequestService requestService;
+    private final RequestService requestService = new RequestService(JPAConfig.getEntityManager());
     @Inject
     private OrderService orderService;
-    @Inject
-    private BookService bookService;
+    private final BookService bookService = new BookService(JPAConfig.getEntityManager());
 
     public List<Order> getCompletedOrdersByPeriod(LocalDate startDate, LocalDate endDate) {
         return orderService.getOrders().stream()

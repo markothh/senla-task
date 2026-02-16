@@ -1,224 +1,135 @@
 package model.repository;
 
-import model.config.DBConnection;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.TypedQuery;
+import model.config.JPAConfig;
 import model.entity.Request;
 import model.service.CSVHandler.CSVHandlers;
-import model.utils.EntityParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.Serializable;
-import java.sql.Date;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class RequestRepository implements Serializable, IRepository<Request> {
+public class RequestRepository implements IRepository<Request> {
     private static final Logger logger = LogManager.getLogger();
-    private static RequestRepository INSTANCE;
+    private final EntityManager em;
 
-    public static RequestRepository getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new RequestRepository();
-        }
-        return INSTANCE;
+    private static final String GET_BY_ID_SUCCESS_MSG = "Запрос с id = {} получен";
+    private static final String GET_BY_ID_ERROR_MSG = "Не удалось получить данные запроса с id = {}";
+    private static final String GET_BY_BOOK_ID_SUCCESS_MSG = "Успешно получены запросы на книгу с id = {}";
+    private static final String GET_BY_BOOK_ID_ERROR_MSG = "Запросы на книгу с id = {} не найдены";
+    private static final String GET_ALL_SUCCESS_MSG = "Список запросов успешно получен.";
+    private static final String ADD_SUCCESS_MSG = "Запрос '{}' успешно добавлена";
+    private static final String DELETE_BY_ID_SUCCESS_MSG = "Запрос на книгу с id = {} успешно удален";
+    private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные запроса на книгу с id = {}";
+    private static final String DELETE_BY_BOOK_ID_SUCCESS_MSG = "Запрос с id = {} успешно удален";
+    private static final String DELETE_BY_BOOK_ID_ERROR_MSG = "Не удалось получить данные запроса с id = {}";
+    private static final String IMPORT_SUCCESS_MSG = "Запросы успешно импортированы из файла '{}'";
+    private static final String IMPORT_ERROR_MSG = "Не удалось импортировать запрос с id = {}: {}";
+    private static final String INCREASE_AMOUNT_SUCCESS_MSG = "Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: запрос не найден";
+    private static final String INCREASE_AMOUNT_ERROR_MSG = "Количество запрашиваемых книг в запросе с id = {} успешно увеличено";
+
+    public RequestRepository(EntityManager em) {
+        this.em = em;
     }
 
-    public Optional<Request> findByBookId(int bookId) {
-        try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
-                "r.id as request_id, " +
-                "r.created_at as request_created_at, " +
-                "r.quantity as request_quantity, " +
-                "b.id as book_id, " +
-                "b.name as book_name, " +
-                "b.description as book_description, " +
-                "b.author as book_author, " +
-                "b.genre as book_genre, " +
-                "b.price as book_price, " +
-                "b.status as book_status, " +
-                "b.publish_year as book_publish_year, " +
-                "b.stock_date as book_stock_date " +
-                "from requests r " +
-                "join books b on b.id = r.book_id " +
-                "where b.id = ?")) {
-            stmt.setInt(1, bookId);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Успешно получены запросы на книгу с id = {}", bookId);
-                    try {
-                        return Optional.of(EntityParser.parseRequest(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Запросы на книгу с id = {} не найдены", bookId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Ошибка запроса к БД: {}", e.getMessage());
+    @Override
+    public Optional<Request> findById(int id) {
+        Request request = em.find(Request.class, id);
+        if (request != null) {
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
+            return Optional.of(request);
+        } else {
+            logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
     }
 
     @Override
     public List<Request> findAll() {
-        List<Request> requests = new ArrayList<>();
-        try (var stmt = DBConnection.getInstance().getConnection().createStatement()) {
-            try (var rs = stmt.executeQuery("select " +
-                    "r.id as request_id, " +
-                    "r.created_at as request_created_at, " +
-                    "r.quantity as request_quantity, " +
-                    "b.id as book_id, " +
-                    "b.name as book_name, " +
-                    "b.description as book_description, " +
-                    "b.author as book_author, " +
-                    "b.genre as book_genre, " +
-                    "b.price as book_price, " +
-                    "b.status as book_status, " +
-                    "b.publish_year as book_publish_year, " +
-                    "b.stock_date as book_stock_date " +
-                    "from requests r " +
-                    "join books b on b.id = r.book_id ")) {
-                while (rs.next()) {
-                    try {
-                        requests.add(EntityParser.parseRequest(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
-                    }
-                }
-                logger.info("Список запросов успешно получен");
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить список пользователей: {}", e.getMessage());
-        }
-        return requests;
+        TypedQuery<Request> query = em.createQuery(
+                "select r from Request r " +
+                        "join fetch r.book", Request.class);
+        logger.debug(GET_ALL_SUCCESS_MSG);
+        return query.getResultList();
     }
 
     @Override
-    public Optional<Request> findById(int requestId) {
-        try (var stmt = DBConnection.getInstance().getConnection().prepareStatement("select " +
-                "r.id as request_id, " +
-                "r.created_at as request_created_at, " +
-                "r.quantity as request_quantity, " +
-                "b.id as book_id, " +
-                "b.name as book_name, " +
-                "b.description as book_description, " +
-                "b.author as book_author, " +
-                "b.genre as book_genre, " +
-                "b.price as book_price, " +
-                "b.status as book_status, " +
-                "b.publish_year as book_publish_year, " +
-                "b.stock_date as book_stock_date " +
-                "from requests r " +
-                "join books b on b.id = r.book_id " +
-                "where r.id = ?")) {
-            stmt.setInt(1, requestId);
-            try (var rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    logger.info("Успешно получены данные запроса с id = {}", requestId);
-                    try {
-                        return Optional.of(EntityParser.parseRequest(rs));
-                    } catch (IllegalArgumentException e) {
-                        logger.error("Данные запроса не удалось извлечь из БД: {}", e.getMessage());
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("Не удалось получить данные запроса с id = {}", requestId);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Не удалось получить данные запроса с id = {}: {}", requestId, e.getMessage());
+    public void save(Request obj) {
+        if (obj.getId() == null) {
+            em.persist(obj);
+        } else {
+            em.merge(obj);
+        }
+        logger.info(ADD_SUCCESS_MSG);
+    }
+
+    @Override
+    public void deleteById(int id) {
+        Request request = em.find(Request.class, id);
+        if (request != null) {
+            em.remove(request);
+        } else {
+            logger.error(DELETE_BY_ID_ERROR_MSG, id);
+        }
+        logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
+    }
+
+    public Optional<Request> findByBookId(int bookId) {
+        TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
+        query.setParameter("bookId", bookId);
+        try {
+            Request request = query.getSingleResult();
+
+            logger.info(GET_BY_BOOK_ID_SUCCESS_MSG, bookId);
+            return Optional.of(request);
+        } catch (Exception e) {
+            logger.error(GET_BY_BOOK_ID_ERROR_MSG, bookId);
             return Optional.empty();
         }
     }
 
     public void deleteByBookId(int bookId) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("delete from requests " +
-                        "where book_id = ?")) {
-            stmt.setInt(1, bookId);
-
-            stmt.execute();
-            logger.info("Запрос на книгу с id = {} успешно удален", bookId);
-        } catch (SQLException e) {
-            logger.error("Не удалось удалить запросы на книгу с id = {}", bookId);
+        TypedQuery<Request> query = em.createQuery("select r from Request r where r.book.id = :bookId", Request.class);
+        query.setParameter("bookId", bookId);
+        Request request = query.getSingleResult();
+        if (request != null) {
+            em.remove(request);
+        } else {
+            logger.error(DELETE_BY_BOOK_ID_ERROR_MSG, bookId);
         }
+        logger.info(DELETE_BY_BOOK_ID_SUCCESS_MSG, bookId);
     }
 
-    @Override
-    public void save(Request request) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into requests (" +
-                        "created_at, " +
-                        "book_id, " +
-                        "quantity)" +
-                        "values (?, ?, ?)")) {
-            LocalDate createdAt = request.getCreatedAt();
-            if (createdAt != null) {
-                stmt.setDate(1, Date.valueOf(createdAt));
-            }
-            stmt.setInt(2, request.getBook().getId());
-            stmt.setInt(3, request.getQuantity());
-
-            stmt.execute();
-            logger.info("Запрос на книгу '{}' успешно добавлен", request.getBook().getName());
-        } catch (SQLException e) {
-            logger.error("Не удалось добавить запрос на книгу '{}': {}", request.getBook().getName(), e.getMessage());
-        }
-    }
-
-    public void increaseAmount(int requestId) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("update requests set " +
-                        "quantity = requests.quantity + 1 " +
-                        "where id = ?")) {
-            stmt.setInt(1, requestId);
-
-            stmt.execute();
-            logger.info("Количество запрашиваемых книг в запросе с id = {} успешно увеличено", requestId);
-        } catch (SQLException e) {
-            logger.error("Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: {}", requestId, e.getMessage());
-        }
+    public void increaseAmount(int id) {
+        findById(id).ifPresentOrElse(
+                Request::increaseAmount,
+                () -> {
+                    logger.error(INCREASE_AMOUNT_ERROR_MSG, id);
+                }
+        );
+        logger.info(INCREASE_AMOUNT_SUCCESS_MSG, id);
     }
 
     public void exportToCSV(String filePath) {
         CSVHandlers.requests().exportToCSV(filePath);
-        logger.info("Запросы успешно экспортированы в файл '{}'", filePath);
     }
 
     public void importFromCSV(String filePath) {
-        try (var stmt = DBConnection.getInstance().getConnection()
-                .prepareStatement("insert into requests (" +
-                        "id, " +
-                        "created_at, " +
-                        "book_id, " +
-                        "quantity)" +
-                        "values (?, ?, ?, ?)" +
-                        "on conflict (id)" +
-                        "do update set" +
-                        "created_at = EXCLUDED.created_at, " +
-                        "book_id = EXCLUDED.book_id, " +
-                        "quantity = EXCLUDED.quantity")) {
-            for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
-                stmt.setInt(1, request.getId());
-                LocalDate createdAt = request.getCreatedAt();
-                if (createdAt != null) {
-                    stmt.setDate(2, Date.valueOf(createdAt));
-                }
-                stmt.setInt(3, request.getBook().getId());
-                stmt.setInt(4, request.getQuantity());
-
-                stmt.addBatch();
+        for (Request request : CSVHandlers.requests().importFromCSV(filePath)) {
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                save(request);
+                tx.commit();
+            } catch (Exception e) {
+                logger.error(IMPORT_ERROR_MSG, request.getId(), e.getMessage());
+                tx.rollback();
             }
-
-            stmt.executeBatch();logger.info("Запросы успешно импортированы из файла '{}'", filePath);
-        } catch (SQLException e) {
-            logger.error("Не удалось импортировать запросы из файла '{}': {}", filePath, e.getMessage());
         }
+
+        logger.info(IMPORT_SUCCESS_MSG, filePath);
     }
 }
