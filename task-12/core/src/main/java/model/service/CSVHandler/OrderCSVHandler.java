@@ -12,10 +12,13 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,19 +34,18 @@ public class OrderCSVHandler implements ICSVHandler<Order> {
     @PersistenceContext
     private EntityManager em;
 
-    private static final String EXPORT_SUCCESS_MSG = "Заказы успешно экспортированы в файл '{}'";
-    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String EXPORT_SUCCESS_MSG = "Заказы успешно экспортированы в файл";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл";
     private static final String ADD_SUCCESS_MSG = "Информация о заказах была получена из файла '{}'";
     private static final String ADD_ERROR_MSG = "Данные заказа не добавлены: {}";
     private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
     private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
-    private static final String USER_NOT_FOUND_ERROR_MSG = "Пользователь с id = %d не найден";
     private static final String ASSOCIATION_ERROR = "Не удалось установить соответствия между сущностями: %s";
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность заказа из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(List<Order> orders, String filePath) {
-        try (FileWriter writer = new FileWriter(filePath)) {
+    public void exportToCSV(List<Order> orders, OutputStream os) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os))) {
             writer.write("id;user;books;created_at;completed_at;status\n");
             for (Order order : orders) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s%n",
@@ -59,14 +61,14 @@ public class OrderCSVHandler implements ICSVHandler<Order> {
                 );
             }
 
-            logger.info(EXPORT_SUCCESS_MSG, filePath);
+            logger.info(EXPORT_SUCCESS_MSG);
         } catch (IOException e) {
-            logger.error(EXPORT_ERROR_MSG, filePath);
+            logger.error(EXPORT_ERROR_MSG);
         }
     }
 
     @Override
-    public List<Order> importFromCSV(String filePath) {
+    public List<Order> importFromCSV(File filePath) {
         List<Order> result = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {

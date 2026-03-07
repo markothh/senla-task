@@ -17,7 +17,7 @@ import java.util.Properties;
 
 @Configuration
 @PropertySource("classpath:application.properties")
-@ComponentScan(basePackages = {"model", "view", "controller"})
+@ComponentScan(basePackages = {"model", "controller"})
 @EnableTransactionManagement(proxyTargetClass = true)
 public class AppConfig {
     @Value("${db.url}")

@@ -11,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
+import java.io.File;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,7 +36,7 @@ public class RequestRepository implements IRepository<Request> {
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные запроса на книгу с id = {}";
     private static final String DELETE_BY_BOOK_ID_SUCCESS_MSG = "Запрос с id = {} успешно удален";
     private static final String DELETE_BY_BOOK_ID_ERROR_MSG = "Не удалось получить данные запроса с id = {}";
-    private static final String IMPORT_SUCCESS_MSG = "Запросы успешно импортированы из файла '{}'";
+    private static final String IMPORT_SUCCESS_MSG = "Запросы успешно импортированы из файла";
     private static final String INCREASE_AMOUNT_ERROR_MSG = "Не удалось увеличить количество запрашиваемых книг в запросе с id = {}: запрос не найден";
     private static final String INCREASE_AMOUNT_SUCCESS_MSG = "Количество запрашиваемых книг в запросе с id = {} успешно увеличено";
 
@@ -122,12 +124,12 @@ public class RequestRepository implements IRepository<Request> {
         logger.info(INCREASE_AMOUNT_SUCCESS_MSG, id);
     }
 
-    public void exportToCSV(String filePath) {
-        csvHandler.exportToCSV(findAll(), filePath);
+    public void exportToCSV(OutputStream os) {
+        csvHandler.exportToCSV(findAll(), os);
     }
 
-    public void importFromCSV(String filePath) {
-        for (Request request : csvHandler.importFromCSV(filePath)) {
+    public void importFromCSV(File file) {
+        for (Request request : csvHandler.importFromCSV(file)) {
             em.createNativeQuery("insert into requests (" +
                     "id, " +
                     "created_at, " +
@@ -146,6 +148,6 @@ public class RequestRepository implements IRepository<Request> {
                     .executeUpdate();
         }
 
-        logger.info(IMPORT_SUCCESS_MSG, filePath);
+        logger.info(IMPORT_SUCCESS_MSG);
     }
 }

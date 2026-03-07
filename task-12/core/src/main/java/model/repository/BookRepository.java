@@ -10,6 +10,8 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
+import java.io.File;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +33,7 @@ public class BookRepository implements IRepository<Book> {
     private static final String ADD_SUCCESS_MSG = "Книга '{}' успешно добавлена";
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Книга с id = {} успешно удалена";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные книги с id = {}";
-    private static final String IMPORT_SUCCESS_MSG = "Книги успешно импортированы из файла '{}'";
+    private static final String IMPORT_SUCCESS_MSG = "Книги успешно импортированы из файла";
 
     public BookRepository(BookCSVHandler csvHandler) {
         this.csvHandler = csvHandler;
@@ -66,7 +68,6 @@ public class BookRepository implements IRepository<Book> {
         logger.info(ADD_SUCCESS_MSG, obj.getName());
     }
 
-
     @Override
     public void deleteById(int id) {
         Book book = em.find(Book.class, id);
@@ -91,13 +92,12 @@ public class BookRepository implements IRepository<Book> {
         }
     }
 
-    public void exportToCSV(String filePath) {
-        csvHandler.exportToCSV(findAll(), filePath);
-
+    public void exportToCSV(OutputStream os) {
+        csvHandler.exportToCSV(findAll(), os);
     }
 
-    public void importFromCSV(String filePath) {
-        for (Book book : csvHandler.importFromCSV(filePath)) {
+    public void importFromCSV(File file) {
+        for (Book book : csvHandler.importFromCSV(file)) {
             em.createNativeQuery("insert into books (" +
                     "id, " +
                     "name, " +
@@ -131,6 +131,6 @@ public class BookRepository implements IRepository<Book> {
                     .executeUpdate();
         }
 
-        logger.info(IMPORT_SUCCESS_MSG, filePath);
+        logger.info(IMPORT_SUCCESS_MSG);
     }
 }

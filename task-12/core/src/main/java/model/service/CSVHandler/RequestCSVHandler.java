@@ -8,11 +8,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
-import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +28,8 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
     @PersistenceContext
     private EntityManager em;
 
-    private static final String EXPORT_SUCCESS_MSG = "Запросы успешно экспортированы в файл '{}'";
-    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String EXPORT_SUCCESS_MSG = "Запросы успешно экспортированы в файл";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл";
     private static final String ADD_SUCCESS_MSG = "Информация о запросах была получена из файла '{}'";
     private static final String ADD_ERROR_MSG = "Данные запроса не добавлены: {}";
     private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
@@ -35,8 +38,8 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность запроса из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(List<Request> requests, String filePath) {
-        try (FileWriter writer = new FileWriter(filePath)) {
+    public void exportToCSV(List<Request> requests, OutputStream os) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os))) {
             writer.write("id;createdAt;book;quantity\n");
             for (Request request : requests) {
                 writer.write(String.format("%s;%s;%s;%s%n",
@@ -47,14 +50,14 @@ public class RequestCSVHandler implements ICSVHandler<Request> {
                 );
             }
 
-            logger.info(EXPORT_SUCCESS_MSG, filePath);
+            logger.info(EXPORT_SUCCESS_MSG);
         } catch (IOException e) {
-            logger.error(EXPORT_ERROR_MSG, filePath);
+            logger.error(EXPORT_ERROR_MSG);
         }
     }
 
     @Override
-    public List<Request> importFromCSV(String filePath) {
+    public List<Request> importFromCSV(File filePath) {
         List<Request> result = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
