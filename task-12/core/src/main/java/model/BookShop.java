@@ -1,11 +1,7 @@
 package model;
 
-import model.annotations.Inject;
-import model.config.AppConfig;
 import model.config.AppState;
-import model.config.JPAConfig;
 import model.entity.Book;
-import model.entity.DTO.UserProfile;
 import model.entity.Order;
 import model.entity.Request;
 import model.entity.User;
@@ -15,31 +11,26 @@ import model.service.OrderService;
 import model.service.RequestService;
 import model.service.StatisticsService;
 import model.service.UserService;
-import model.utils.di.ConfigLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
-public final class BookShop {
+@Service
+public class BookShop {
     private static final Logger logger = LogManager.getLogger();
-    private static BookShop INSTANCE;
     public static Scanner SCANNER = new Scanner(System.in);
-    private final RequestService requestService = new RequestService(JPAConfig.getEntityManager());
-    @Inject
-    private OrderService orderService;
-    private final BookService bookService = new BookService(JPAConfig.getEntityManager());
-    @Inject
-    private UserService userService;
-    @Inject
-    private StatisticsService statistics;
-    @Inject
-    private AppConfig appConfig;
+    private final RequestService requestService;
+    private final OrderService orderService;
+    private final BookService bookService;
+    private final UserService userService;
+    private final StatisticsService statistics;
 
     private static final String REMOVE_FROM_STOCK_INIT_MSG = "Инициирована операция: Удаление книги '{}' со склада";
-    private static final String CREATE_ORDER_INIT_MSG = "Инициирована операция: Создание заказа пользователем {}";
+    private static final String CREATE_ORDER_INIT_MSG = "Инициирована операция: Создание заказа";
     private static final String CANCEL_ORDER_INIT_MSG = "Инициирована операция: Отмена заказа №{}";
     private static final String CHANGE_ORDER_INIT_MSG = "Инициирована операция: Изменение заказа №{}.";
     private static final String ADD_TO_STOCK_INIT_MSG = "Инициирована операция: Добавление книги '{}' на склад.";
@@ -67,16 +58,13 @@ public final class BookShop {
     private static final String LOGOUT_INIT_MSG = "Инициирована операция: Выход из аккаунта.";
     private static final String GET_USERS_INIT_MSG = "Инициирована операция: Получение списка пользователей.";
 
-    private BookShop() {
-        ConfigLoader.configure(new AppState());
-        AppState.loadState();
-    }
-
-    public static BookShop getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new BookShop();
-        }
-        return INSTANCE;
+    private BookShop(RequestService requestService, OrderService orderService, BookService bookService, UserService userService, StatisticsService statistics, AppState appState) {
+        this.requestService = requestService;
+        this.orderService = orderService;
+        this.bookService = bookService;
+        this.userService = userService;
+        this.statistics = statistics;
+        appState.loadState();
     }
 
     //----------------------------------------Task 3--------------------------------------------
@@ -85,9 +73,9 @@ public final class BookShop {
         bookService.removeFromStock(bookName);
     }
 
-    public void createOrder(UserProfile user, List<String> bookNames) {
-        logger.info(CREATE_ORDER_INIT_MSG, user.getName());
-        orderService.createOrder(user, bookNames);
+    public void createOrder(List<String> bookNames) {
+        logger.info(CREATE_ORDER_INIT_MSG);
+        orderService.createOrder(bookNames);
     }
 
     public void cancelOrder(int orderId) {
@@ -102,7 +90,7 @@ public final class BookShop {
 
     public void addBookToStock(String bookName) {
         logger.info(ADD_TO_STOCK_INIT_MSG, bookName);
-        bookService.addToStock(bookName, appConfig.getAutoCompleteRequests());
+        bookService.addToStock(bookName);
     }
 
     public void createBookRequest(String bookName) {
@@ -153,7 +141,7 @@ public final class BookShop {
 
     public List<Book> getOverstockedBooks() {
         logger.info(GET_OVERSTOCKED_BOOKS_INIT_MSG);
-        return statistics.getOverstockedBooks(appConfig.getStaleMonths());
+        return statistics.getOverstockedBooks();
     }
 
     public String getOrderDetails(int orderId) {

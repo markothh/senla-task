@@ -1,17 +1,15 @@
 package model.service.CSVHandler;
 
 import jakarta.persistence.EntityManager;
-import model.config.JPAConfig;
+import jakarta.persistence.PersistenceContext;
 import model.entity.Book;
 import model.entity.Order;
 import model.entity.User;
 import model.enums.OrderStatus;
-import model.repository.BookRepository;
-import model.repository.OrderRepository;
-import model.repository.UserRepository;
 import model.status.IOrderStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -24,16 +22,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-public final class OrderCSVHandler implements ICSVHandler<Order> {
+@Service
+public class OrderCSVHandler implements ICSVHandler<Order> {
     private static final Logger logger = LogManager.getLogger();
-    private static OrderCSVHandler INSTANCE;
 
-    private final BookRepository bookRepository;
-    private final UserRepository userRepository;
-    private final OrderRepository orderRepository;
+    @PersistenceContext
+    private EntityManager em;
 
     private static final String EXPORT_SUCCESS_MSG = "Заказы успешно экспортированы в файл '{}'";
     private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
@@ -45,26 +41,11 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
     private static final String ASSOCIATION_ERROR = "Не удалось установить соответствия между сущностями: %s";
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность заказа из данных файла. Неверный формат данных: %s";
 
-
-    private OrderCSVHandler() {
-        EntityManager em = JPAConfig.getEntityManager();
-        bookRepository = new BookRepository(em);
-        userRepository = new UserRepository(em);
-        orderRepository = new OrderRepository(em);
-    }
-
-    public static ICSVHandler<Order> getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new OrderCSVHandler();
-        }
-        return INSTANCE;
-    }
-
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<Order> orders, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;user;books;created_at;completed_at;status\n");
-            for (Order order : orderRepository.findAll()) {
+            for (Order order : orders) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s%n",
                         order.getId(),
                         order.getUser().getId(),
@@ -114,16 +95,13 @@ public final class OrderCSVHandler implements ICSVHandler<Order> {
     private List<Book> findBooks(String strBookIds) {
         return Arrays.stream(strBookIds.split(","))
                 .map(Integer::parseInt)
-                .map(bookRepository::findById)
-                .flatMap(Optional::stream)
+                .map(id -> em.getReference(Book.class, id))
                 .toList();
     }
 
 
     private User findUser(int userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new NoSuchElementException(String.format(USER_NOT_FOUND_ERROR_MSG, userId)));
+        return em.getReference(User.class, userId);
     }
 
     private Order parseOrder(String orderData) throws IllegalArgumentException {

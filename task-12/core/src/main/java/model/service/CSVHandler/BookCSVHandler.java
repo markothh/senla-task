@@ -1,11 +1,10 @@
 package model.service.CSVHandler;
 
-import model.config.JPAConfig;
 import model.entity.Book;
 import model.enums.BookStatus;
-import model.repository.BookRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -16,10 +15,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class BookCSVHandler implements ICSVHandler<Book> {
+@Service
+public class BookCSVHandler implements ICSVHandler<Book> {
     private static final Logger logger = LogManager.getLogger();
-    private static BookCSVHandler INSTANCE;
-    private final BookRepository bookRepository = new BookRepository(JPAConfig.getEntityManager());
 
     private static final String EXPORT_SUCCESS_MSG = "Книги успешно экспортированы в файл '{}'";
     private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
@@ -29,21 +27,12 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
     private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s";
 
-    private BookCSVHandler() { }
-
-    public static BookCSVHandler getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new BookCSVHandler();
-        }
-        return INSTANCE;
-    }
-
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<Book> books, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;description;author;genre;price;status;publishYear;stockDate\n");
 
-            for (Book book : bookRepository.findAll()) {
+            for (Book book : books) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s%n",
                         book.getId(),
                         book.getName(),
