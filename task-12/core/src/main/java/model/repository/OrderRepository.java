@@ -42,7 +42,7 @@ public class OrderRepository implements IRepository<Order> {
     public Optional<Order> findById(int id) {
         Order order = em.find(Order.class, id);
         if (order != null) {
-            logger.info(GET_BY_ID_SUCCESS_MSG, id);
+            logger.debug(GET_BY_ID_SUCCESS_MSG, id);
             return Optional.of(order);
         } else {
             logger.error(GET_BY_ID_ERROR_MSG, id);
@@ -56,7 +56,7 @@ public class OrderRepository implements IRepository<Order> {
                 "select o from Order o " +
                         "join fetch o.user " +
                         "join fetch o.books", Order.class);
-        logger.info(GET_ALL_SUCCESS_MSG);
+        logger.debug(GET_ALL_SUCCESS_MSG);
         return query.getResultList();
     }
 
