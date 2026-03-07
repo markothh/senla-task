@@ -1,8 +1,8 @@
 package view.menu.operations;
 
+import view.MenuProvider;
 import view.menu.Menu;
 import view.MenuItem;
-import view.MenuProvider;
 
 public class BookSortFieldMenu extends Menu {
     public BookSortFieldMenu(Menu previousMenu) {

@@ -1,32 +1,43 @@
 package model.service;
 
-import model.annotations.Inject;
-import model.config.DBConnection;
+import jakarta.transaction.Transactional;
 import model.entity.Book;
-import model.entity.DTO.UserProfile;
 import model.entity.Order;
 import model.enums.OrderStatus;
 import model.repository.OrderRepository;
+import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-public final class OrderService {
+@Service
+public class OrderService {
     private static final Logger logger = LogManager.getLogger();
-    private static OrderService INSTANCE;
-    @Inject
-    private OrderRepository orderRepository;
-    @Inject
-    private RequestService requestService;
-    @Inject
-    private BookService bookService;
+    private final OrderRepository orderRepository;
+    private final BookService bookService;
+    private final RequestService requestService;
+    private final UserRepository userRepository;
+
+    private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
+            "Возможные значения параметра сортировки: completedAt, price, status";
+    private static final String CHANGE_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: {}";
+    private static final String ORDER_CREATION_ERROR_MSG = "Не удалось сформировать заказ: {}";
+    private static final String ORDER_CREATION_SUCCESS_MSG = "Заказ успешно сформирован";
+    private static final String ORDER_CANCELLATION_ERROR_MSG = "Не удалось отменить заказ с id = {}";
+    private static final String USER_NOT_INITIALIZED_ERROR_MSG = "Ошибка инициализации пользователя";
+
+    public OrderService(BookService bookService, RequestService requestService, OrderRepository orderRepository, UserRepository userRepository) {
+        this.orderRepository = orderRepository;
+        this.bookService = bookService;
+        this.requestService = requestService;
+        this.userRepository = userRepository;
+    }
 
     public List<Order> getOrders() {
         return orderRepository.findAll();
@@ -41,8 +52,7 @@ public final class OrderService {
 
         Comparator<Order> comparator = comparators.get(sortBy);
         if (comparator == null) {
-            logger.error("Невозможна сортировка по указанному полю. " +
-                    "Возможные значения параметра сортировки: completedAt, price, status");
+            logger.error(SORT_ERROR_MSG);
             return List.of();
         }
 
@@ -63,56 +73,45 @@ public final class OrderService {
         try {
             orderRepository.setOrderStatus(orderId, status);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось изменить статус заказа с id = {}", orderId);
+            logger.error(CHANGE_STATUS_ERROR_MSG, orderId, e.getMessage());
         }
     }
 
-    public void createOrder(UserProfile user, List<String> bookNames) {
-        Connection connection = DBConnection.getInstance().getConnection();
+    @Transactional
+    public void createOrder(List<String> bookNames) {
         List<Book> books;
         try {
             books = bookService.formIdListFromNames(bookNames);
         } catch (NoSuchElementException e) {
-            logger.error("Не удалось сформировать заказ: {}", e.getMessage());
+            logger.error(ORDER_CREATION_ERROR_MSG, e.getMessage());
             return;
         }
 
+        Order order;
         try {
-            connection.setAutoCommit(false);
-
-            Order order = new Order(user);
-            for (Book book : books) {
-                if (!book.isAvailable()) {
-                    requestService.createRequestIfNotAvailable(book);
-                }
-
-                order.addBook(book);
-            }
-
-            orderRepository.save(order);
-        } catch (SQLException e) {
-            try {
-                logger.info("Заказ не был создан. Изменения, касающиеся этого заказа, не были применены");
-                connection.rollback();
-            } catch (SQLException e1) {
-                logger.error("Ошибка отмены изменений: {}", e1.getMessage());
-                throw new RuntimeException(e1);
-            }
-        } finally {
-            try {
-                connection.setAutoCommit(true);
-            } catch (SQLException e1) {
-                logger.error("Ошибка настройки коммитов: {}", e1.getMessage());
-                throw new RuntimeException(e1);
-            }
+            order = new Order(userRepository.getCurrentUserProfileReference());
+        } catch (Exception e) {
+            logger.error(USER_NOT_INITIALIZED_ERROR_MSG);
+            return;
         }
+
+        for (Book book : books) {
+            if (!book.isAvailable()) {
+                requestService.createRequestIfNotAvailable(book);
+            }
+
+            order.addBook(book);
+        }
+
+        orderRepository.save(order);
+        logger.info(ORDER_CREATION_SUCCESS_MSG);
     }
 
     public void cancelOrder(int orderId) {
         try {
             orderRepository.setOrderStatus(orderId, OrderStatus.CANCELLED);
         } catch (IllegalStateException e) {
-            logger.error("Не удалось отменить заказ с id = {}", orderId);
+            logger.error(ORDER_CANCELLATION_ERROR_MSG, orderId);
         }
     }
 
@@ -123,13 +122,4 @@ public final class OrderService {
     public void importOrders(String filePath) {
         orderRepository.importFromCSV(filePath);
     }
-
-    public static OrderService getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new OrderService();
-        }
-        return INSTANCE;
-    }
-
-    private OrderService() { }
 }

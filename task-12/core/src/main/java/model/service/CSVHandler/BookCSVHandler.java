@@ -2,9 +2,9 @@ package model.service.CSVHandler;
 
 import model.entity.Book;
 import model.enums.BookStatus;
-import model.repository.BookRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -15,26 +15,24 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class BookCSVHandler implements ICSVHandler<Book> {
+@Service
+public class BookCSVHandler implements ICSVHandler<Book> {
     private static final Logger logger = LogManager.getLogger();
-    private static BookCSVHandler INSTANCE;
-    private final BookRepository bookRepository = BookRepository.getInstance();
 
-    private BookCSVHandler() { }
-
-    public static BookCSVHandler getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new BookCSVHandler();
-        }
-        return INSTANCE;
-    }
+    private static final String EXPORT_SUCCESS_MSG = "Книги успешно экспортированы в файл '{}'";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String ADD_SUCCESS_MSG = "Информация о книгах была получена из файла '{}'";
+    private static final String ADD_ERROR_MSG = "Данные книги не добавлены: {}";
+    private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
+    private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
+    private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<Book> books, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;description;author;genre;price;status;publishYear;stockDate\n");
 
-            for (Book book : bookRepository.findAll()) {
+            for (Book book : books) {
                 writer.write(String.format("%s;%s;%s;%s;%s;%s;%s;%s;%s%n",
                         book.getId(),
                         book.getName(),
@@ -48,9 +46,9 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
                 );
             }
 
-            logger.info("Книги успешно экспортированы в файл '{}'", filePath);
+            logger.info(EXPORT_SUCCESS_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Не удалось открыть для записи файл '{}'", filePath);
+            logger.error(EXPORT_ERROR_MSG, filePath);
         }
     }
 
@@ -66,14 +64,14 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
                 try {
                     result.add(parseBook(line));
                 } catch (IllegalArgumentException e) {
-                    logger.error("Данные книги не добавлены: {}", e.getMessage());
+                    logger.error(ADD_ERROR_MSG, e.getMessage());
                 }
             }
-            logger.info("Информация о книгах была получена из файла '{}'", filePath);
+            logger.info(ADD_SUCCESS_MSG, filePath);
         } catch (FileNotFoundException e) {
-            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
+            logger.error(FILE_OPEN_ERROR_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Ошибка чтения из файла '{}'", filePath);
+            logger.error(READ_ERROR_MSG, filePath);
         }
 
         return result;
@@ -95,7 +93,7 @@ public final class BookCSVHandler implements ICSVHandler<Book> {
             );
         } catch (Exception e) {
             logger.debug(bookData);
-            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s", e.getMessage()));
+            throw new IllegalArgumentException(String.format(PARSE_ERROR_MSG, e.getMessage()));
         }
 
     }

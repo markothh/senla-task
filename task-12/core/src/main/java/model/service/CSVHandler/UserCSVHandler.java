@@ -2,9 +2,9 @@ package model.service.CSVHandler;
 
 import model.entity.User;
 import model.enums.UserRole;
-import model.repository.UserRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,25 +14,23 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class UserCSVHandler implements ICSVHandler<User> {
+@Service
+public class UserCSVHandler implements ICSVHandler<User> {
     private static final Logger logger = LogManager.getLogger();
-    private static UserCSVHandler INSTANCE;
-    private final UserRepository userRepository = UserRepository.getInstance();
 
-    private UserCSVHandler() { }
-
-    public static UserCSVHandler getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new UserCSVHandler();
-        }
-        return INSTANCE;
-    }
+    private static final String EXPORT_SUCCESS_MSG = "Пользователи успешно экспортированы в файл '{}'";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String ADD_SUCCESS_MSG = "Информация о пользователях была получена из файла '{}'";
+    private static final String ADD_ERROR_MSG = "Данные пользователя не добавлены: {}";
+    private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
+    private static final String READ_ERROR_MSG = "Ошибка чтения из файла '{}'";
+    private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность пользователя из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(String filePath) {
+    public void exportToCSV(List<User> users, String filePath) {
         try (FileWriter writer = new FileWriter(filePath)) {
             writer.write("id;name;password;role\n");
-            for (User user : userRepository.findAll()) {
+            for (User user : users) {
                 writer.write(String.format("%s;%s;%s;%s%n",
                         user.getId(),
                         user.getName(),
@@ -41,9 +39,9 @@ public final class UserCSVHandler implements ICSVHandler<User> {
                 );
             }
 
-            logger.info("Пользователи успешно экспортированы в файл '{}'", filePath);
+            logger.info(EXPORT_SUCCESS_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Не удалось открыть для записи файл '{}'", filePath);
+            logger.error(EXPORT_ERROR_MSG, filePath);
         }
     }
 
@@ -59,14 +57,14 @@ public final class UserCSVHandler implements ICSVHandler<User> {
                 try {
                     result.add(parseUser(line));
                 } catch (IllegalArgumentException e) {
-                    logger.error("Данные пользователя не добавлены: {}", e.getMessage());
+                    logger.error(ADD_ERROR_MSG, e.getMessage());
                 }
             }
-            logger.info("Информация о пользователях была получена из файла '{}'", filePath);
+            logger.info(ADD_SUCCESS_MSG, filePath);
         } catch (FileNotFoundException e) {
-            logger.error("Не удалось открыть для чтения файл '{}'", filePath);
+            logger.error(FILE_OPEN_ERROR_MSG, filePath);
         } catch (IOException e) {
-            logger.error("Ошибка чтения из файла '{}'", filePath);
+            logger.error(READ_ERROR_MSG, filePath);
         }
 
         return result;
@@ -83,7 +81,7 @@ public final class UserCSVHandler implements ICSVHandler<User> {
             );
         } catch (Exception e) {
             logger.debug(userData);
-            throw new IllegalArgumentException(String.format("Не удалось сформировать сущность пользователя из данных файла. Неверный формат данных: %s", e.getMessage()));
+            throw new IllegalArgumentException(String.format(PARSE_ERROR_MSG, e.getMessage()));
         }
     }
 }
