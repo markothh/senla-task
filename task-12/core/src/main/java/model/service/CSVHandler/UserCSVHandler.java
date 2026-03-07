@@ -6,11 +6,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
-import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,8 +21,8 @@ import java.util.List;
 public class UserCSVHandler implements ICSVHandler<User> {
     private static final Logger logger = LogManager.getLogger();
 
-    private static final String EXPORT_SUCCESS_MSG = "Пользователи успешно экспортированы в файл '{}'";
-    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String EXPORT_SUCCESS_MSG = "Пользователи успешно экспортированы в файл";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл";
     private static final String ADD_SUCCESS_MSG = "Информация о пользователях была получена из файла '{}'";
     private static final String ADD_ERROR_MSG = "Данные пользователя не добавлены: {}";
     private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
@@ -27,8 +30,8 @@ public class UserCSVHandler implements ICSVHandler<User> {
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность пользователя из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(List<User> users, String filePath) {
-        try (FileWriter writer = new FileWriter(filePath)) {
+    public void exportToCSV(List<User> users, OutputStream os) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os))) {
             writer.write("id;name;password;role\n");
             for (User user : users) {
                 writer.write(String.format("%s;%s;%s;%s%n",
@@ -39,14 +42,14 @@ public class UserCSVHandler implements ICSVHandler<User> {
                 );
             }
 
-            logger.info(EXPORT_SUCCESS_MSG, filePath);
+            logger.info(EXPORT_SUCCESS_MSG);
         } catch (IOException e) {
-            logger.error(EXPORT_ERROR_MSG, filePath);
+            logger.error(EXPORT_ERROR_MSG);
         }
     }
 
     @Override
-    public List<User> importFromCSV(String filePath) {
+    public List<User> importFromCSV(File filePath) {
         List<User> result = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {

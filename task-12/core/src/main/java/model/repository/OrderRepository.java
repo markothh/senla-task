@@ -12,7 +12,10 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
+import java.io.File;
+import java.io.OutputStream;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Repository
@@ -31,7 +34,7 @@ public class OrderRepository implements IRepository<Order> {
     private static final String ADD_SUCCESS_MSG = "Заказ '{}' успешно добавлена";
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Заказ с id = {} успешно удален";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные заказа с id = {}";
-    private static final String IMPORT_SUCCESS_MSG = "Заказы успешно импортированы из файла '{}'";
+    private static final String IMPORT_SUCCESS_MSG = "Заказы успешно импортированы из файла";
     private static final String SET_STATUS_ERROR_MSG = "Не удалось изменить статус заказа с id = {}: заказ не найден";
 
     public OrderRepository(OrderCSVHandler csvHandler) {
@@ -79,6 +82,7 @@ public class OrderRepository implements IRepository<Order> {
             em.remove(order);
         } else {
             logger.error(DELETE_BY_ID_ERROR_MSG, id);
+            throw new NoSuchElementException(DELETE_BY_ID_ERROR_MSG);
         }
         logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
@@ -90,22 +94,21 @@ public class OrderRepository implements IRepository<Order> {
     }
 
     @Transactional
-    public void setOrderStatus (int id, OrderStatus status) throws IllegalStateException {
-        findById(id).ifPresentOrElse(
-                order -> order.setStatus(status),
-                () -> {
-                    logger.error(SET_STATUS_ERROR_MSG, id);
-                }
-        );
+    public Order setOrderStatus(int id, OrderStatus status) throws IllegalStateException {
+        Order order = findById(id)
+                .orElseThrow(() -> new NoSuchElementException(SET_STATUS_ERROR_MSG));
+
+        order.setStatus(status);
+        return order;
     }
 
-    public void exportToCSV(String filePath) {
-        csvHandler.exportToCSV(findAll(), filePath);
+    public void exportToCSV(OutputStream os) {
+        csvHandler.exportToCSV(findAll(), os);
     }
 
     @Transactional
-    public void importFromCSV(String filePath) {
-        for (Order order : csvHandler.importFromCSV(filePath)) {
+    public void importFromCSV(File file) {
+        for (Order order : csvHandler.importFromCSV(file)) {
             em.createNativeQuery("insert into orders (" +
                     "user_id, " +
                     "created_at, " +
@@ -119,6 +122,6 @@ public class OrderRepository implements IRepository<Order> {
                     .executeUpdate();
         }
 
-        logger.info(IMPORT_SUCCESS_MSG, filePath);
+        logger.info(IMPORT_SUCCESS_MSG);
     }
 }

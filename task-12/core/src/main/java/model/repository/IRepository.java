@@ -1,7 +1,5 @@
 package model.repository;
 
-import jakarta.persistence.EntityManager;
-
 import java.util.List;
 import java.util.Optional;
 

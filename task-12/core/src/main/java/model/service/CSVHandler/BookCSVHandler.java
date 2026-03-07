@@ -7,10 +7,13 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
-import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +22,8 @@ import java.util.List;
 public class BookCSVHandler implements ICSVHandler<Book> {
     private static final Logger logger = LogManager.getLogger();
 
-    private static final String EXPORT_SUCCESS_MSG = "Книги успешно экспортированы в файл '{}'";
-    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл '{}'";
+    private static final String EXPORT_SUCCESS_MSG = "Книги успешно экспортированы в файл";
+    private static final String EXPORT_ERROR_MSG = "Не удалось открыть для записи файл";
     private static final String ADD_SUCCESS_MSG = "Информация о книгах была получена из файла '{}'";
     private static final String ADD_ERROR_MSG = "Данные книги не добавлены: {}";
     private static final String FILE_OPEN_ERROR_MSG = "Не удалось открыть для чтения файл '{}'";
@@ -28,8 +31,8 @@ public class BookCSVHandler implements ICSVHandler<Book> {
     private static final String PARSE_ERROR_MSG = "Не удалось сформировать сущность книги из данных файла. Неверный формат данных: %s";
 
     @Override
-    public void exportToCSV(List<Book> books, String filePath) {
-        try (FileWriter writer = new FileWriter(filePath)) {
+    public void exportToCSV(List<Book> books, OutputStream os) {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os))) {
             writer.write("id;name;description;author;genre;price;status;publishYear;stockDate\n");
 
             for (Book book : books) {
@@ -46,14 +49,14 @@ public class BookCSVHandler implements ICSVHandler<Book> {
                 );
             }
 
-            logger.info(EXPORT_SUCCESS_MSG, filePath);
+            logger.info(EXPORT_SUCCESS_MSG);
         } catch (IOException e) {
-            logger.error(EXPORT_ERROR_MSG, filePath);
+            logger.error(EXPORT_ERROR_MSG);
         }
     }
 
     @Override
-    public List<Book> importFromCSV(String filePath) {
+    public List<Book> importFromCSV(File filePath) {
         List<Book> result = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
@@ -95,6 +98,5 @@ public class BookCSVHandler implements ICSVHandler<Book> {
             logger.debug(bookData);
             throw new IllegalArgumentException(String.format(PARSE_ERROR_MSG, e.getMessage()));
         }
-
     }
 }
