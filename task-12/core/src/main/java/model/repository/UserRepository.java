@@ -4,22 +4,22 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import jakarta.transaction.Transactional;
-import model.entity.DTO.UserProfile;
+import model.entity.DTO.UserDTO;
 import model.entity.User;
 import model.service.CSVHandler.UserCSVHandler;
-import model.service.UserContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Repository;
 
+import java.io.File;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class UserRepository implements IRepository<User> {
     private static final Logger logger = LogManager.getLogger();
-    private final UserContext userContext;
 
     @Lazy
     private final UserCSVHandler csvHandler;
@@ -35,10 +35,9 @@ public class UserRepository implements IRepository<User> {
     private static final String ADD_SUCCESS_MSG = "Пользователь '{}' успешно добавлен";
     private static final String DELETE_BY_ID_SUCCESS_MSG = "Пользователь с id = {} успешно удален";
     private static final String DELETE_BY_ID_ERROR_MSG = "Не удалось получить данные пользователя с id = {}";
-    private static final String IMPORT_SUCCESS_MSG = "Пользователи успешно импортированы из файла '{}'";
+    private static final String IMPORT_SUCCESS_MSG = "Пользователи успешно импортированы из файла";
 
-    public UserRepository(UserContext userContext, UserCSVHandler csvHandler) {
-        this.userContext = userContext;
+    public UserRepository(UserCSVHandler csvHandler) {
         this.csvHandler = csvHandler;
     }
 
@@ -84,19 +83,15 @@ public class UserRepository implements IRepository<User> {
         logger.info(DELETE_BY_ID_SUCCESS_MSG, id);
     }
 
-    public Optional<UserProfile> findProfileById(int id) {
+    public Optional<UserDTO> findProfileById(int id) {
         User user = em.find(User.class, id);
         if (user != null) {
             logger.info(GET_BY_ID_SUCCESS_MSG, id);
-            return Optional.of(new UserProfile(user.getId(), user.getName()));
+            return Optional.of(new UserDTO(user));
         } else {
             logger.error(GET_BY_ID_ERROR_MSG, id);
             return Optional.empty();
         }
-    }
-
-    public User getCurrentUserProfileReference() {
-        return em.getReference(User.class, userContext.getCurrentUser().getId());
     }
 
     public Optional<User> findByName(String name) {
@@ -116,13 +111,13 @@ public class UserRepository implements IRepository<User> {
         return user.getPassword().equals(password);
     }
 
-    public void exportToCSV(String filePath) {
-        csvHandler.exportToCSV(findAll(), filePath);
+    public void exportToCSV(OutputStream os) {
+        csvHandler.exportToCSV(findAll(), os);
     }
 
     @Transactional
-    public void importFromCSV(String filePath) {
-        for (User user : csvHandler.importFromCSV(filePath)) {
+    public void importFromCSV(File file) {
+        for (User user : csvHandler.importFromCSV(file)) {
             em.createNativeQuery("insert into users (" +
                     "id, " +
                     "name, " +
@@ -141,6 +136,6 @@ public class UserRepository implements IRepository<User> {
                     .executeUpdate();
         }
 
-        logger.info(IMPORT_SUCCESS_MSG, filePath);
+        logger.info(IMPORT_SUCCESS_MSG);
     }
 }
