@@ -1,6 +1,5 @@
 package exception;
 
-import jakarta.annotation.PostConstruct;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -21,7 +20,6 @@ public class BookshopExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ErrorResponse handleAny(Exception e) {
         Throwable root = e;
-        // Разворачиваем ServletException или другие обёртки
         while (root.getCause() != null && root != root.getCause()) {
             root = root.getCause();
         }
@@ -33,10 +31,5 @@ public class BookshopExceptionHandler {
         } else {
             return new ErrorResponse("ERROR", root.getMessage());
         }
-    }
-
-    @PostConstruct
-    public void init() {
-        System.out.println("Advice loaded");
     }
 }

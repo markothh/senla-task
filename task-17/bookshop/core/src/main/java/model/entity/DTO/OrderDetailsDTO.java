@@ -7,7 +7,7 @@ import model.enums.OrderStatus;
 import java.time.LocalDate;
 import java.util.List;
 
-public class OrderDTO {
+public class OrderDetailsDTO {
     @NotNull
     private int id;
 
@@ -24,7 +24,7 @@ public class OrderDTO {
     @NotNull
     private OrderStatus status;
 
-    public OrderDTO(Order order) {
+    public OrderDetailsDTO(Order order) {
         this.id = order.getId();;
         this.userId = order.getUser().getId();
         this.createdAt = order.getCreatedAt();

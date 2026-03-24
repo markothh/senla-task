@@ -95,16 +95,19 @@ public class UserRepository implements IRepository<User> {
     }
 
     public Optional<User> findByName(String name) {
-        TypedQuery<User> query = em.createQuery("select u from User u where u.name = :name", User.class);
+        TypedQuery<User> query = em.createQuery(
+                "select u from User u where u.name = :name", User.class);
         query.setParameter("name", name);
-        User user = query.getSingleResult();
-        if (user != null) {
-            logger.info(GET_BY_NAME_SUCCESS_MSG, name);
-            return Optional.of(user);
-        } else {
+
+        List<User> result = query.getResultList();
+
+        if (result.isEmpty()) {
             logger.error(GET_BY_NAME_ERROR_MSG, name);
             return Optional.empty();
         }
+
+        logger.info(GET_BY_NAME_SUCCESS_MSG, name);
+        return Optional.of(result.get(0));
     }
 
     public boolean authorize(User user, String password) {

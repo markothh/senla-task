@@ -29,6 +29,7 @@ public class OrderService {
 
     private static final String SORT_ERROR_MSG = "Невозможна сортировка по указанному полю. " +
             "Возможные значения параметра сортировки: completedAt, price, status";
+    private static final String GET_BY_ID_ERROR_MSG = "Заказ с id = %d не найден";
     private static final String ORDER_CREATION_SUCCESS_MSG = "Заказ успешно сформирован";
     private static final String USER_NOT_INITIALIZED_ERROR_MSG = "Ошибка инициализации пользователя";
 
@@ -63,6 +64,12 @@ public class OrderService {
         return orderRepository.findAll().stream()
                 .sorted(comparator)
                 .toList();
+    }
+
+    public Order getOrderById(int id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() ->
+                        new NoSuchElementException(String.format(GET_BY_ID_ERROR_MSG, id)));
     }
 
     public Order setOrderStatus(int orderId, OrderStatus status) {
