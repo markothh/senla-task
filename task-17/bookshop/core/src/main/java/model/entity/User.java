@@ -33,6 +33,12 @@ public class User {
         this.role = role;
     }
 
+    public User(String username, String password) {
+        this.name = username;
+        this.password = password;
+        this.role = UserRole.USER;
+    }
+
     @Override
     public String toString() {
         return "\nUser{" +

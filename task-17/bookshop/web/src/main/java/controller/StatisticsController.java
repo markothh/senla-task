@@ -1,7 +1,7 @@
 package controller;
 
 import model.entity.DTO.BookDTO;
-import model.entity.DTO.OrderDTO;
+import model.entity.DTO.OrderDetailsDTO;
 import model.service.StatisticsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,13 +21,13 @@ public class StatisticsController {
     }
 
     @GetMapping("/orders")
-    public List<OrderDTO> getCompletedOrders(
+    public List<OrderDetailsDTO> getCompletedOrders(
                 @RequestParam("start_date") LocalDate startDate,
                 @RequestParam("end_date") LocalDate endDate
             ) {
         return statisticsService.getCompletedOrdersByPeriod(startDate, endDate)
                 .stream()
-                .map(OrderDTO::new)
+                .map(OrderDetailsDTO::new)
                 .toList();
     }
 
